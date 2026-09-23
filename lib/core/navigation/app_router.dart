@@ -10,6 +10,10 @@ import 'package:dailycart/screens/history/history_screen.dart';
 import 'package:dailycart/screens/analytics/analytics_screen.dart';
 import 'package:dailycart/screens/settings/settings_screen.dart';
 
+import 'package:dailycart/screens/shopping/shopping_screen.dart';
+import 'package:dailycart/screens/templates/templates_screen.dart';
+import 'package:dailycart/screens/backup/backup_screen.dart';
+
 final _shellKey = GlobalKey<NavigatorState>();
 
 final routerProvider = Provider<GoRouter>((ref) {
@@ -24,6 +28,22 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.onboarding,
         builder: (context, state) => const OnboardingScreen(),
+      ),
+      GoRoute(
+        path: '/lists/:listId/shopping',
+        builder: (context, state) {
+          final listId =
+              int.tryParse(state.pathParameters['listId'] ?? '') ?? 0;
+          return ShoppingScreen(listId: listId);
+        },
+      ),
+      GoRoute(
+        path: AppRoutes.templates,
+        builder: (context, state) => const TemplatesScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.backup,
+        builder: (context, state) => const BackupScreen(),
       ),
       ShellRoute(
         navigatorKey: _shellKey,
