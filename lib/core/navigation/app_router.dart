@@ -16,6 +16,35 @@ import 'package:dailycart/screens/backup/backup_screen.dart';
 
 final _shellKey = GlobalKey<NavigatorState>();
 
+CustomTransitionPage<T> _buildFadeSlidePage<T>({
+  required LocalKey key,
+  required Widget child,
+}) {
+  return CustomTransitionPage<T>(
+    key: key,
+    child: child,
+    transitionDuration: const Duration(milliseconds: 260),
+    reverseTransitionDuration: const Duration(milliseconds: 220),
+    transitionsBuilder: (context, animation, secondaryAnimation, child) {
+      final curve = CurvedAnimation(
+        parent: animation,
+        curve: Curves.easeOutCubic,
+        reverseCurve: Curves.easeInCubic,
+      );
+      final offsetAnimation = Tween<Offset>(
+        begin: const Offset(0.06, 0.0),
+        end: Offset.zero,
+      ).animate(curve);
+      final fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(curve);
+
+      return SlideTransition(
+        position: offsetAnimation,
+        child: FadeTransition(opacity: fadeAnimation, child: child),
+      );
+    },
+  );
+}
+
 final routerProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     initialLocation: AppRoutes.splash,
@@ -27,23 +56,35 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: AppRoutes.onboarding,
-        builder: (context, state) => const OnboardingScreen(),
+        pageBuilder: (context, state) => _buildFadeSlidePage(
+          key: state.pageKey,
+          child: const OnboardingScreen(),
+        ),
       ),
       GoRoute(
         path: '/lists/:listId/shopping',
-        builder: (context, state) {
+        pageBuilder: (context, state) {
           final listId =
               int.tryParse(state.pathParameters['listId'] ?? '') ?? 0;
-          return ShoppingScreen(listId: listId);
+          return _buildFadeSlidePage(
+            key: state.pageKey,
+            child: ShoppingScreen(listId: listId),
+          );
         },
       ),
       GoRoute(
         path: AppRoutes.templates,
-        builder: (context, state) => const TemplatesScreen(),
+        pageBuilder: (context, state) => _buildFadeSlidePage(
+          key: state.pageKey,
+          child: const TemplatesScreen(),
+        ),
       ),
       GoRoute(
         path: AppRoutes.backup,
-        builder: (context, state) => const BackupScreen(),
+        pageBuilder: (context, state) => _buildFadeSlidePage(
+          key: state.pageKey,
+          child: const BackupScreen(),
+        ),
       ),
       ShellRoute(
         navigatorKey: _shellKey,

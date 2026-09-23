@@ -8,6 +8,7 @@ import 'package:dailycart/core/services/notification_service.dart';
 import 'package:dailycart/core/theme/app_colors.dart';
 import 'package:dailycart/providers/settings_provider.dart';
 import 'package:dailycart/screens/settings/categories_sheet.dart';
+import 'package:dailycart/widgets/common/app_logo_widget.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -28,6 +29,9 @@ class SettingsScreen extends ConsumerWidget {
       body: settingsAsync.when(
         data: (settings) {
           return ListView(
+            physics: const BouncingScrollPhysics(
+              parent: AlwaysScrollableScrollPhysics(),
+            ),
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             children: [
               // Appearance Section
@@ -360,25 +364,15 @@ class SettingsScreen extends ConsumerWidget {
                   padding: const EdgeInsets.all(16),
                   child: Column(
                     children: [
-                      Row(
+                      const Row(
                         children: [
-                          Container(
-                            width: 48,
-                            height: 48,
-                            decoration: BoxDecoration(
-                              color: AppColors.primary,
-                              borderRadius: BorderRadius.circular(14),
-                            ),
-                            child: const Center(
-                              child: Icon(
-                                Icons.shopping_cart_rounded,
-                                color: Colors.white,
-                                size: 24,
-                              ),
-                            ),
+                          AppLogoWidget(
+                            size: 48,
+                            borderRadius: 14,
+                            showShadow: false,
                           ),
-                          const SizedBox(width: 14),
-                          const Column(
+                          SizedBox(width: 14),
+                          Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(

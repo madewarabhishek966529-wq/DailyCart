@@ -51,6 +51,9 @@ class AnalyticsScreen extends ConsumerWidget {
               ref.invalidate(frequentItemsProvider);
             },
             child: ListView(
+              physics: const BouncingScrollPhysics(
+                parent: AlwaysScrollableScrollPhysics(),
+              ),
               padding: const EdgeInsets.all(16),
               children: [
                 // Top KPI summary row

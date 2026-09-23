@@ -142,6 +142,9 @@ class _ListsScreenState extends ConsumerState<ListsScreen> {
                     ref.invalidate(shoppingListsProvider);
                   },
                   child: ListView.separated(
+                    physics: const BouncingScrollPhysics(
+                      parent: AlwaysScrollableScrollPhysics(),
+                    ),
                     padding: const EdgeInsets.fromLTRB(16, 8, 16, 88),
                     itemCount: filtered.length,
                     separatorBuilder: (_, _) => const SizedBox(height: 12),

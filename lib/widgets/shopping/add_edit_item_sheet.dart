@@ -102,307 +102,384 @@ class _AddEditItemSheetState extends ConsumerState<AddEditItemSheet> {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+    final maxHeight = MediaQuery.of(context).size.height * 0.88;
 
-    return Container(
-      decoration: BoxDecoration(
-        color: isDark ? AppColors.surfaceDark : Colors.white,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      padding: EdgeInsets.fromLTRB(20, 16, 20, 16 + bottomInset),
-      child: SingleChildScrollView(
+    return Padding(
+      padding: EdgeInsets.only(bottom: bottomInset),
+      child: Container(
+        constraints: BoxConstraints(maxHeight: maxHeight),
+        decoration: BoxDecoration(
+          color: isDark ? AppColors.surfaceDark : Colors.white,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Handle bar
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: isDark ? Colors.white24 : Colors.black12,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // Title
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  isEdit ? 'Edit Item' : 'Add Grocery Item',
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.close, size: 20),
-                  onPressed: () => Navigator.of(context).pop(),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-
-            // Item Name with suggestions
-            TextField(
-              controller: _nameController,
-              autofocus: !isEdit,
-              textCapitalization: TextCapitalization.sentences,
-              decoration: const InputDecoration(
-                labelText: 'Item Name *',
-                hintText: 'e.g. Fresh Milk, Tomatoes, Brown Bread',
-                prefixIcon: Icon(Icons.shopping_basket_outlined, size: 20),
-              ),
-              onChanged: (val) {
-                // If user types, we can trigger autocomplete
-                setState(() {});
-              },
-            ),
-
-            // Quick suggestion chips based on input
-            if (!isEdit && _nameController.text.isNotEmpty)
-              _buildSuggestionsRow(),
-
-            const SizedBox(height: 16),
-
-            // Category selector
-            const Text(
-              'Category',
-              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-            ),
-            const SizedBox(height: 8),
-            categoriesAsync.when(
-              data: (categories) => _buildCategoryChips(categories, isDark),
-              loading: () =>
-                  const SizedBox(height: 32, child: LinearProgressIndicator()),
-              error: (_, _) => const SizedBox.shrink(),
-            ),
-            const SizedBox(height: 16),
-
-            // Quantity and Unit Row
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Quantity Stepper
-                Expanded(
-                  flex: 3,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Quantity',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                        ),
+            // Pinned Header bar
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 12, 12, 10),
+              child: Column(
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: isDark ? Colors.white24 : Colors.black12,
+                        borderRadius: BorderRadius.circular(2),
                       ),
-                      const SizedBox(height: 8),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
                       Row(
                         children: [
-                          _buildStepperAction(
-                            icon: Icons.remove,
-                            onTap: () {
-                              if (_quantity > 1) {
-                                _updateQuantity(_quantity - 1);
-                              } else if (_quantity > 0.25) {
-                                _updateQuantity(_quantity - 0.25);
-                              }
-                            },
+                          Icon(
+                            isEdit
+                                ? Icons.edit_note_rounded
+                                : Icons.add_circle_outline_rounded,
+                            color: AppColors.primary,
+                            size: 22,
                           ),
-                          Expanded(
-                            child: TextField(
-                              controller: _quantityController,
-                              textAlign: TextAlign.center,
-                              keyboardType:
-                                  const TextInputType.numberWithOptions(
-                                    decimal: true,
-                                  ),
-                              decoration: const InputDecoration(
-                                contentPadding: EdgeInsets.symmetric(
-                                  vertical: 10,
-                                ),
-                              ),
-                              onChanged: (val) {
-                                final d = double.tryParse(val);
-                                if (d != null && d > 0) {
-                                  _quantity = d;
-                                  setState(() {});
-                                }
-                              },
+                          const SizedBox(width: 8),
+                          Text(
+                            isEdit ? 'Edit Item' : 'Add Grocery Item',
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700,
                             ),
-                          ),
-                          _buildStepperAction(
-                            icon: Icons.add,
-                            onTap: () => _updateQuantity(_quantity + 1),
                           ),
                         ],
                       ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 12),
-
-                // Unit Selector
-                Expanded(
-                  flex: 2,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Unit',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      DropdownButtonFormField<String>(
-                        initialValue: _selectedUnit,
-                        decoration: const InputDecoration(
-                          contentPadding: EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 10,
-                          ),
-                        ),
-                        items: AppConstants.units.map((u) {
-                          return DropdownMenuItem(value: u, child: Text(u));
-                        }).toList(),
-                        onChanged: (val) {
-                          if (val != null) {
-                            setState(() => _selectedUnit = val);
-                          }
-                        },
+                      IconButton(
+                        icon: const Icon(Icons.close, size: 20),
+                        onPressed: () => Navigator.of(context).pop(),
                       ),
                     ],
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-            const SizedBox(height: 16),
+            Divider(
+              height: 1,
+              thickness: 0.8,
+              color: isDark ? Colors.white10 : Colors.black12,
+            ),
 
-            // Price Fields
-            Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Unit Price',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
+            // Scrollable Form Body
+            Expanded(
+              child: SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Item Name with suggestions
+                    TextField(
+                      controller: _nameController,
+                      autofocus: !isEdit,
+                      textCapitalization: TextCapitalization.sentences,
+                      decoration: const InputDecoration(
+                        labelText: 'Item Name *',
+                        hintText: 'e.g. Fresh Milk, Tomatoes, Brown Bread',
+                        prefixIcon: Icon(
+                          Icons.shopping_basket_outlined,
+                          size: 20,
                         ),
                       ),
-                      const SizedBox(height: 8),
-                      TextField(
-                        controller: _unitPriceController,
-                        keyboardType: const TextInputType.numberWithOptions(
-                          decimal: true,
-                        ),
-                        decoration: const InputDecoration(
-                          prefixText: '${AppConstants.currency} ',
-                          hintText: '0.00',
-                        ),
-                        onChanged: (val) {
-                          _unitPrice = double.tryParse(val) ?? 0.0;
-                          setState(() {});
-                        },
+                      onChanged: (val) {
+                        setState(() {});
+                      },
+                    ),
+
+                    // Quick suggestion chips based on input
+                    if (!isEdit && _nameController.text.isNotEmpty)
+                      _buildSuggestionsRow(),
+
+                    const SizedBox(height: 16),
+
+                    // Category selector
+                    const Text(
+                      'Category',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
                       ),
-                    ],
-                  ),
-                ),
-                if (isEdit && widget.existingItem!.isPurchased) ...[
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
+                    ),
+                    const SizedBox(height: 8),
+                    categoriesAsync.when(
+                      data: (categories) =>
+                          _buildCategoryChips(categories, isDark),
+                      loading: () => const SizedBox(
+                        height: 32,
+                        child: LinearProgressIndicator(),
+                      ),
+                      error: (_, _) => const SizedBox.shrink(),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Quantity and Unit Row
+                    Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          'Actual Price',
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
+                        // Quantity Stepper
+                        Expanded(
+                          flex: 3,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Quantity',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Row(
+                                children: [
+                                  _buildStepperAction(
+                                    icon: Icons.remove,
+                                    onTap: () {
+                                      if (_quantity > 1) {
+                                        _updateQuantity(_quantity - 1);
+                                      } else if (_quantity > 0.25) {
+                                        _updateQuantity(_quantity - 0.25);
+                                      }
+                                    },
+                                  ),
+                                  Expanded(
+                                    child: TextField(
+                                      controller: _quantityController,
+                                      textAlign: TextAlign.center,
+                                      keyboardType:
+                                          const TextInputType.numberWithOptions(
+                                            decimal: true,
+                                          ),
+                                      decoration: const InputDecoration(
+                                        contentPadding: EdgeInsets.symmetric(
+                                          vertical: 10,
+                                        ),
+                                      ),
+                                      onChanged: (val) {
+                                        final d = double.tryParse(val);
+                                        if (d != null && d > 0) {
+                                          _quantity = d;
+                                          setState(() {});
+                                        }
+                                      },
+                                    ),
+                                  ),
+                                  _buildStepperAction(
+                                    icon: Icons.add,
+                                    onTap: () => _updateQuantity(_quantity + 1),
+                                  ),
+                                ],
+                              ),
+                            ],
                           ),
                         ),
-                        const SizedBox(height: 8),
-                        TextField(
-                          controller: _actualUnitPriceController,
-                          keyboardType: const TextInputType.numberWithOptions(
-                            decimal: true,
+                        const SizedBox(width: 12),
+
+                        // Unit Selector
+                        Expanded(
+                          flex: 2,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Unit',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              DropdownButtonFormField<String>(
+                                initialValue: _selectedUnit,
+                                decoration: const InputDecoration(
+                                  contentPadding: EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 10,
+                                  ),
+                                ),
+                                items: AppConstants.units.map((u) {
+                                  return DropdownMenuItem(
+                                    value: u,
+                                    child: Text(u),
+                                  );
+                                }).toList(),
+                                onChanged: (val) {
+                                  if (val != null) {
+                                    setState(() => _selectedUnit = val);
+                                  }
+                                },
+                              ),
+                            ],
                           ),
-                          decoration: const InputDecoration(
-                            prefixText: '${AppConstants.currency} ',
-                            hintText: '0.00',
-                          ),
-                          onChanged: (val) {
-                            _actualUnitPrice = double.tryParse(val) ?? 0.0;
-                            setState(() {});
-                          },
                         ),
                       ],
                     ),
-                  ),
-                ],
-              ],
-            ),
+                    const SizedBox(height: 16),
 
-            if (_unitPrice > 0) ...[
-              const SizedBox(height: 6),
-              Text(
-                'Total: ${FormatUtils.formatCurrency(_calculatedEstimatedTotal)}',
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.primary,
+                    // Price Fields
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Unit Price',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              TextField(
+                                controller: _unitPriceController,
+                                keyboardType:
+                                    const TextInputType.numberWithOptions(
+                                      decimal: true,
+                                    ),
+                                decoration: const InputDecoration(
+                                  prefixText: '${AppConstants.currency} ',
+                                  hintText: '0.00',
+                                ),
+                                onChanged: (val) {
+                                  _unitPrice = double.tryParse(val) ?? 0.0;
+                                  setState(() {});
+                                },
+                              ),
+                            ],
+                          ),
+                        ),
+                        if (isEdit && widget.existingItem!.isPurchased) ...[
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Actual Price',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                TextField(
+                                  controller: _actualUnitPriceController,
+                                  keyboardType:
+                                      const TextInputType.numberWithOptions(
+                                        decimal: true,
+                                      ),
+                                  decoration: const InputDecoration(
+                                    prefixText: '${AppConstants.currency} ',
+                                    hintText: '0.00',
+                                  ),
+                                  onChanged: (val) {
+                                    _actualUnitPrice =
+                                        double.tryParse(val) ?? 0.0;
+                                    setState(() {});
+                                  },
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+
+                    if (_unitPrice > 0) ...[
+                      const SizedBox(height: 6),
+                      Text(
+                        'Total: ${FormatUtils.formatCurrency(_calculatedEstimatedTotal)}',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 16),
+
+                    // Note field
+                    TextField(
+                      controller: _noteController,
+                      textCapitalization: TextCapitalization.sentences,
+                      decoration: const InputDecoration(
+                        labelText: 'Note / Brand (Optional)',
+                        hintText: 'e.g. Amul Gold, 2 packs',
+                        prefixIcon: Icon(Icons.notes_rounded, size: 20),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Priority Selector
+                    const Text(
+                      'Priority',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        _buildPriorityChip('Normal', ItemPriority.normal),
+                        const SizedBox(width: 8),
+                        _buildPriorityChip('High', ItemPriority.high),
+                        const SizedBox(width: 8),
+                        _buildPriorityChip('Low', ItemPriority.low),
+                      ],
+                    ),
+                  ],
                 ),
               ),
-            ],
-            const SizedBox(height: 16),
+            ),
 
-            // Note field
-            TextField(
-              controller: _noteController,
-              textCapitalization: TextCapitalization.sentences,
-              decoration: const InputDecoration(
-                labelText: 'Note / Brand (Optional)',
-                hintText: 'e.g. Amul Gold, 2 packs',
-                prefixIcon: Icon(Icons.notes_rounded, size: 20),
+            // Pinned Bottom Action Button (Never floats or overlaps)
+            Container(
+              padding: const EdgeInsets.fromLTRB(20, 10, 20, 16),
+              decoration: BoxDecoration(
+                color: isDark ? AppColors.surfaceDark : Colors.white,
+                border: Border(
+                  top: BorderSide(
+                    color: isDark ? Colors.white10 : Colors.black12,
+                    width: 0.8,
+                  ),
+                ),
               ),
-            ),
-            const SizedBox(height: 16),
-
-            // Priority Selector
-            const Text(
-              'Priority',
-              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                _buildPriorityChip('Normal', ItemPriority.normal),
-                const SizedBox(width: 8),
-                _buildPriorityChip('High', ItemPriority.high),
-                const SizedBox(width: 8),
-                _buildPriorityChip('Low', ItemPriority.low),
-              ],
-            ),
-            const SizedBox(height: 24),
-
-            // Save / Add Button
-            SizedBox(
-              width: double.infinity,
-              height: 50,
-              child: FilledButton(
-                onPressed: _saveItem,
-                child: Text(
-                  isEdit ? 'Save Changes' : 'Add to List',
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
+              child: SafeArea(
+                top: false,
+                child: SizedBox(
+                  width: double.infinity,
+                  height: 50,
+                  child: FilledButton.icon(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    onPressed: _saveItem,
+                    icon: Icon(
+                      isEdit
+                          ? Icons.check_circle_outline_rounded
+                          : Icons.add_shopping_cart_rounded,
+                      size: 20,
+                    ),
+                    label: Text(
+                      isEdit ? 'Save Changes' : 'Add to List',
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                   ),
                 ),
               ),

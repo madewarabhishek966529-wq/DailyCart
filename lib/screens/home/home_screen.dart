@@ -11,6 +11,7 @@ import 'package:dailycart/providers/frequent_item_provider.dart';
 import 'package:dailycart/providers/grocery_item_provider.dart';
 import 'package:dailycart/providers/history_provider.dart';
 import 'package:dailycart/providers/shopping_list_provider.dart';
+import 'package:dailycart/widgets/common/app_logo_widget.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -34,28 +35,39 @@ class HomeScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        titleSpacing: 16,
+        title: Row(
           children: [
-            Text(
-              _getGreeting(),
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-                color: isDark
-                    ? AppColors.textSecondaryDark
-                    : AppColors.textSecondary,
-              ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              "What's on your cart today?",
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-                color: isDark
-                    ? AppColors.textPrimaryDark
-                    : AppColors.textPrimary,
+            const AppLogoWidget(size: 38, borderRadius: 10, showShadow: false),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    _getGreeting(),
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                      color: isDark
+                          ? AppColors.textSecondaryDark
+                          : AppColors.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: 1),
+                  Text(
+                    "What's on your cart?",
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w700,
+                      color: isDark
+                          ? AppColors.textPrimaryDark
+                          : AppColors.textPrimary,
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
@@ -84,6 +96,9 @@ class HomeScreen extends ConsumerWidget {
               ref.invalidate(frequentItemsProvider);
             },
             child: ListView(
+              physics: const BouncingScrollPhysics(
+                parent: AlwaysScrollableScrollPhysics(),
+              ),
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               children: [
                 // 1. Current Active Shopping List Card

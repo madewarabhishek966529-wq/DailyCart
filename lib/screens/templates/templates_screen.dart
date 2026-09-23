@@ -50,6 +50,9 @@ class TemplatesScreen extends ConsumerWidget {
           return RefreshIndicator(
             onRefresh: () async => ref.invalidate(templatesProvider),
             child: ListView.separated(
+              physics: const BouncingScrollPhysics(
+                parent: AlwaysScrollableScrollPhysics(),
+              ),
               padding: const EdgeInsets.all(16),
               itemCount: templates.length,
               separatorBuilder: (_, _) => const SizedBox(height: 12),

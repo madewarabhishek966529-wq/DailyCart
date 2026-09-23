@@ -34,6 +34,9 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
         ),
       ),
       body: ListView(
+        physics: const BouncingScrollPhysics(
+          parent: AlwaysScrollableScrollPhysics(),
+        ),
         padding: const EdgeInsets.all(16),
         children: [
           // Info banner

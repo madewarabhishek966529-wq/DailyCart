@@ -10,6 +10,7 @@ import 'package:dailycart/models/shopping_list_model.dart';
 import 'package:dailycart/providers/grocery_item_provider.dart';
 import 'package:dailycart/providers/history_provider.dart';
 import 'package:dailycart/providers/shopping_list_provider.dart';
+import 'package:dailycart/widgets/common/animated_count_text.dart';
 import 'package:dailycart/widgets/common/empty_state_widget.dart';
 import 'package:dailycart/widgets/shopping/add_edit_item_sheet.dart';
 import 'package:dailycart/widgets/shopping/item_tile_widget.dart';
@@ -175,6 +176,12 @@ class _ShoppingScreenState extends ConsumerState<ShoppingScreen> {
                   ),
                 ],
               ),
+              IconButton(
+                icon: const Icon(Icons.add_circle_outline_rounded, size: 24),
+                tooltip: 'Add Grocery Item',
+                onPressed: () =>
+                    AddEditItemSheet.show(context, listId: widget.listId),
+              ),
             ],
           ),
           body: itemsAsync.when(
@@ -199,12 +206,6 @@ class _ShoppingScreenState extends ConsumerState<ShoppingScreen> {
             },
             loading: () => const Center(child: CircularProgressIndicator()),
             error: (err, _) => Center(child: Text('Error loading items: $err')),
-          ),
-          floatingActionButton: FloatingActionButton.extended(
-            onPressed: () =>
-                AddEditItemSheet.show(context, listId: widget.listId),
-            icon: const Icon(Icons.add),
-            label: const Text('Add Item'),
           ),
         );
       },
@@ -550,7 +551,10 @@ class _ShoppingScreenState extends ConsumerState<ShoppingScreen> {
         ref.invalidate(groceryItemsProvider(widget.listId));
       },
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 4, 16, 80),
+        physics: const BouncingScrollPhysics(
+          parent: AlwaysScrollableScrollPhysics(),
+        ),
+        padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
         children: [
           // TO BUY SECTION
           if (toBuyItems.isNotEmpty || _selectedFilter == ItemFilter.toBuy) ...[
@@ -687,7 +691,10 @@ class _ShoppingScreenState extends ConsumerState<ShoppingScreen> {
     }
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 80),
+      physics: const BouncingScrollPhysics(
+        parent: AlwaysScrollableScrollPhysics(),
+      ),
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
       children: grouped.entries.map((entry) {
         final categoryName = entry.key;
         final catItems = entry.value;
@@ -767,46 +774,75 @@ class _ShoppingScreenState extends ConsumerState<ShoppingScreen> {
           ),
         ),
       ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '$purchasedCount of ${items.length} items checked',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: isDark
-                        ? AppColors.textSecondaryDark
-                        : AppColors.textSecondary,
+      child: SafeArea(
+        top: false,
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '$purchasedCount of ${items.length} items checked',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: isDark
+                          ? AppColors.textSecondaryDark
+                          : AppColors.textSecondary,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  FormatUtils.formatCurrency(list.estimatedTotal),
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
+                  const SizedBox(height: 2),
+                  AnimatedCountText(
+                    value: list.estimatedTotal,
+                    isCurrency: true,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
+                ],
+              ),
+            ),
+            OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.primary,
+                side: const BorderSide(color: AppColors.primary, width: 1.2),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
                 ),
-              ],
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              onPressed: () =>
+                  AddEditItemSheet.show(context, listId: widget.listId),
+              icon: const Icon(Icons.add, size: 18),
+              label: const Text('Add Item'),
             ),
-          ),
-          FilledButton.icon(
-            style: FilledButton.styleFrom(
-              backgroundColor: allPurchased
-                  ? AppColors.success
-                  : AppColors.primary,
+            const SizedBox(width: 8),
+            FilledButton.icon(
+              style: FilledButton.styleFrom(
+                backgroundColor: allPurchased
+                    ? AppColors.success
+                    : AppColors.primary,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 10,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              onPressed: items.isEmpty
+                  ? null
+                  : () => _finishShoppingSession(context, list, items),
+              icon: const Icon(Icons.check, size: 18),
+              label: Text(allPurchased ? 'Finish Trip' : 'Done'),
             ),
-            onPressed: items.isEmpty
-                ? null
-                : () => _finishShoppingSession(context, list, items),
-            icon: const Icon(Icons.check, size: 18),
-            label: Text(allPurchased ? 'Finish Trip' : 'Done Shopping'),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

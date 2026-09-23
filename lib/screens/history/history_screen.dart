@@ -45,6 +45,9 @@ class HistoryScreen extends ConsumerWidget {
           return RefreshIndicator(
             onRefresh: () async => ref.invalidate(historyProvider),
             child: ListView(
+              physics: const BouncingScrollPhysics(
+                parent: AlwaysScrollableScrollPhysics(),
+              ),
               padding: const EdgeInsets.all(16),
               children: [
                 // Top Spend Summary Card

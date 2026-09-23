@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -6,8 +8,7 @@ import 'package:dailycart/core/constants/app_routes.dart';
 import 'package:dailycart/core/theme/app_colors.dart';
 import 'package:dailycart/providers/database_provider.dart';
 import 'package:dailycart/providers/settings_provider.dart';
-
-import 'dart:async';
+import 'package:dailycart/widgets/common/app_logo_widget.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
@@ -17,49 +18,70 @@ class SplashScreen extends ConsumerStatefulWidget {
 }
 
 class _SplashScreenState extends ConsumerState<SplashScreen>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller;
-  late final Animation<double> _scaleAnimation;
-  late final Animation<double> _fadeAnimation;
-  late final Animation<Offset> _slideAnimation;
+    with TickerProviderStateMixin {
+  late final AnimationController _logoController;
+  late final AnimationController _pulseController;
+  late final AnimationController _textController;
+
+  late final Animation<double> _logoScale;
+  late final Animation<double> _logoFade;
+  late final Animation<double> _pulseAnimation;
+  late final Animation<Offset> _textSlide;
+  late final Animation<double> _textFade;
+
   Timer? _timer;
 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
+
+    // 1. Logo entry (elastic bounce)
+    _logoController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 900),
+      duration: const Duration(milliseconds: 700),
+    );
+    _logoScale = Tween<double>(begin: 0.4, end: 1.0).animate(
+      CurvedAnimation(parent: _logoController, curve: Curves.elasticOut),
+    );
+    _logoFade = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _logoController, curve: Curves.easeIn));
+
+    // 2. Pulse aura ring
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1400),
+    )..repeat(reverse: true);
+    _pulseAnimation = Tween<double>(begin: 1.0, end: 1.15).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
 
-    _scaleAnimation = Tween<double>(begin: 0.8, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _controller,
-        curve: const Interval(0.0, 0.7, curve: Curves.easeOutBack),
-      ),
+    // 3. Text slide up and fade in
+    _textController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 500),
     );
-
-    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _controller,
-        curve: const Interval(0.0, 0.6, curve: Curves.easeIn),
-      ),
-    );
-
-    _slideAnimation =
-        Tween<Offset>(begin: const Offset(0, 0.2), end: Offset.zero).animate(
-          CurvedAnimation(
-            parent: _controller,
-            curve: const Interval(0.2, 0.8, curve: Curves.easeOutCubic),
-          ),
+    _textSlide = Tween<Offset>(begin: const Offset(0, 0.4), end: Offset.zero)
+        .animate(
+          CurvedAnimation(parent: _textController, curve: Curves.easeOutCubic),
         );
+    _textFade = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _textController, curve: Curves.easeIn));
 
-    _controller.forward();
-    _startTimer();
+    _startSequence();
   }
 
-  void _startTimer() {
-    _timer = Timer(const Duration(milliseconds: 950), () async {
+  void _startSequence() {
+    _logoController.forward().then((_) {
+      if (mounted) {
+        _textController.forward();
+      }
+    });
+
+    _timer = Timer(const Duration(milliseconds: 1100), () async {
       if (!mounted) return;
       await Future.wait([
         ref.read(databaseProvider.future).catchError((_) => null as dynamic),
@@ -82,7 +104,9 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   @override
   void dispose() {
     _timer?.cancel();
-    _controller.dispose();
+    _logoController.dispose();
+    _pulseController.dispose();
+    _textController.dispose();
     super.dispose();
   }
 
@@ -93,65 +117,85 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     return Scaffold(
       backgroundColor: isDark ? AppColors.surfaceDark : AppColors.surface,
       body: Center(
-        child: FadeTransition(
-          opacity: _fadeAnimation,
-          child: ScaleTransition(
-            scale: _scaleAnimation,
-            child: SlideTransition(
-              position: _slideAnimation,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 88,
-                    height: 88,
-                    decoration: BoxDecoration(
-                      color: AppColors.primary,
-                      borderRadius: BorderRadius.circular(24),
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppColors.primary.withAlpha(70),
-                          blurRadius: 20,
-                          offset: const Offset(0, 8),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Logo with radiating pulse aura
+            AnimatedBuilder(
+              animation: _pulseAnimation,
+              builder: (context, child) {
+                return Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    Container(
+                      width: 110 * _pulseAnimation.value,
+                      height: 110 * _pulseAnimation.value,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: AppColors.primary.withAlpha(
+                          (30 / _pulseAnimation.value).toInt(),
                         ),
-                      ],
-                    ),
-                    child: const Center(
-                      child: Icon(
-                        Icons.shopping_cart_rounded,
-                        size: 46,
-                        color: Colors.white,
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 20),
-                  Text(
-                    AppConstants.appName,
-                    style: TextStyle(
-                      fontSize: 30,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -0.5,
-                      color: isDark
-                          ? AppColors.textPrimaryDark
-                          : AppColors.textPrimary,
+                    FadeTransition(
+                      opacity: _logoFade,
+                      child: ScaleTransition(
+                        scale: _logoScale,
+                        child: const AppLogoWidget(size: 96, showShadow: true),
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    AppConstants.appTagline,
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                      letterSpacing: 0.5,
-                      color: isDark
-                          ? AppColors.textSecondaryDark
-                          : AppColors.textSecondary,
+                  ],
+                );
+              },
+            ),
+            const SizedBox(height: 28),
+
+            // Text section
+            SlideTransition(
+              position: _textSlide,
+              child: FadeTransition(
+                opacity: _textFade,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      AppConstants.appName,
+                      style: TextStyle(
+                        fontSize: 32,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.5,
+                        color: isDark
+                            ? AppColors.textPrimaryDark
+                            : AppColors.textPrimary,
+                      ),
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withAlpha(20),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        AppConstants.appTagline,
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: 0.5,
+                          color: isDark
+                              ? AppColors.primaryLight
+                              : AppColors.primary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
+          ],
         ),
       ),
     );
