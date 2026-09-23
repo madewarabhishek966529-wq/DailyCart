@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dailycart/models/shopping_list_model.dart';
 import 'package:dailycart/repositories/shopping_list_repository.dart';
+import 'package:dailycart/repositories/template_repository.dart';
 import 'package:dailycart/providers/database_provider.dart';
 
 final shoppingListRepositoryProvider = Provider<ShoppingListRepository>((ref) {
@@ -79,6 +80,14 @@ class ShoppingListsNotifier extends AsyncNotifier<List<ShoppingListModel>> {
       ),
     );
     ref.invalidateSelf();
+  }
+
+  Future<int> buyAgain(int sourceListId, String newName) async {
+    final db = await ref.read(databaseProvider.future);
+    final templateRepo = TemplateRepository(db);
+    final newId = await templateRepo.buyAgain(sourceListId, newName);
+    ref.invalidateSelf();
+    return newId;
   }
 }
 
