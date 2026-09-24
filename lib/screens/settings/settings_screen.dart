@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:local_auth/local_auth.dart';
@@ -6,9 +7,11 @@ import 'package:dailycart/core/constants/app_constants.dart';
 import 'package:dailycart/core/constants/app_routes.dart';
 import 'package:dailycart/core/services/notification_service.dart';
 import 'package:dailycart/core/theme/app_colors.dart';
+import 'package:dailycart/core/animations/app_animations.dart';
 import 'package:dailycart/providers/settings_provider.dart';
 import 'package:dailycart/screens/settings/categories_sheet.dart';
 import 'package:dailycart/widgets/common/app_logo_widget.dart';
+import 'package:dailycart/widgets/common/bouncy_tap.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -23,7 +26,7 @@ class SettingsScreen extends ConsumerWidget {
       appBar: AppBar(
         title: const Text(
           'Settings',
-          style: TextStyle(fontWeight: FontWeight.w700),
+          style: TextStyle(fontWeight: FontWeight.w800, fontSize: 20),
         ),
       ),
       body: settingsAsync.when(
@@ -32,398 +35,601 @@ class SettingsScreen extends ConsumerWidget {
             physics: const BouncingScrollPhysics(
               parent: AlwaysScrollableScrollPhysics(),
             ),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 96),
             children: [
               // Appearance Section
-              _buildSectionHeader('Appearance', isDark),
-              Card(
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  side: BorderSide(
-                    color: isDark
-                        ? const Color(0xFF2A2A2A)
-                        : const Color(0xFFE8E8E8),
-                  ),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Column(
-                    children: [
-                      ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        leading: const Icon(Icons.brightness_6_rounded),
-                        title: const Text('Theme Mode'),
-                        subtitle: Text(
-                          _themeModeLabel(settings.themeMode),
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: isDark
-                                ? AppColors.textSecondaryDark
-                                : AppColors.textSecondary,
+              FadeSlideTransition(
+                delay: const Duration(milliseconds: 40),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildSectionHeader('APPEARANCE', isDark),
+                    _buildSettingsCard(
+                      isDark: isDark,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 12,
                           ),
-                        ),
-                        trailing: DropdownButton<ThemeMode>(
-                          value: settings.themeMode,
-                          underline: const SizedBox(),
-                          items: const [
-                            DropdownMenuItem(
-                              value: ThemeMode.system,
-                              child: Text('System'),
-                            ),
-                            DropdownMenuItem(
-                              value: ThemeMode.light,
-                              child: Text('Light'),
-                            ),
-                            DropdownMenuItem(
-                              value: ThemeMode.dark,
-                              child: Text('Dark'),
-                            ),
-                          ],
-                          onChanged: (mode) {
-                            if (mode != null) {
-                              ref
-                                  .read(settingsProvider.notifier)
-                                  .setThemeMode(mode);
-                            }
-                          },
-                        ),
-                      ),
-                      const Divider(height: 1),
-                      SwitchListTile(
-                        contentPadding: EdgeInsets.zero,
-                        secondary: const Icon(Icons.animation_rounded),
-                        title: const Text('Reduced Motion'),
-                        subtitle: Text(
-                          'Minimizes animations for faster UI response',
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: isDark
-                                ? AppColors.textSecondaryDark
-                                : AppColors.textSecondary,
-                          ),
-                        ),
-                        value: settings.reducedMotion,
-                        onChanged: (val) {
-                          ref
-                              .read(settingsProvider.notifier)
-                              .setReducedMotion(val);
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              // Preferences Section
-              _buildSectionHeader('Preferences', isDark),
-              Card(
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  side: BorderSide(
-                    color: isDark
-                        ? const Color(0xFF2A2A2A)
-                        : const Color(0xFFE8E8E8),
-                  ),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Column(
-                    children: [
-                      const ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        leading: Icon(Icons.currency_rupee_rounded),
-                        title: Text('Currency'),
-                        subtitle: Text('Indian Rupee (₹ INR)'),
-                        trailing: Icon(Icons.lock_outline, size: 16),
-                      ),
-                      const Divider(height: 1),
-                      SwitchListTile(
-                        contentPadding: EdgeInsets.zero,
-                        secondary: const Icon(Icons.vibration_rounded),
-                        title: const Text('Haptic Feedback'),
-                        subtitle: const Text('Vibrate on checkbox and taps'),
-                        value: settings.hapticsEnabled,
-                        onChanged: (val) {
-                          ref.read(settingsProvider.notifier).setHaptics(val);
-                        },
-                      ),
-                      const Divider(height: 1),
-                      ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        leading: const Icon(Icons.category_outlined),
-                        title: const Text('Manage Categories'),
-                        subtitle: const Text('Add or view grocery categories'),
-                        trailing: const Icon(
-                          Icons.chevron_right_rounded,
-                          size: 20,
-                        ),
-                        onTap: () => CategoriesSheet.show(context),
-                      ),
-                      const Divider(height: 1),
-                      ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        leading: const Icon(Icons.copy_rounded),
-                        title: const Text('Shopping Templates'),
-                        subtitle: const Text('Weekly & custom templates'),
-                        trailing: const Icon(
-                          Icons.chevron_right_rounded,
-                          size: 20,
-                        ),
-                        onTap: () => context.push(AppRoutes.templates),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              // Notifications Section
-              _buildSectionHeader('Notifications', isDark),
-              Card(
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  side: BorderSide(
-                    color: isDark
-                        ? const Color(0xFF2A2A2A)
-                        : const Color(0xFFE8E8E8),
-                  ),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Column(
-                    children: [
-                      SwitchListTile(
-                        contentPadding: EdgeInsets.zero,
-                        secondary: const Icon(
-                          Icons.notifications_active_outlined,
-                        ),
-                        title: const Text('Local Notifications'),
-                        subtitle: const Text('Shopping and list reminders'),
-                        value: settings.notificationsEnabled,
-                        onChanged: (val) async {
-                          if (val) {
-                            await NotificationService.instance
-                                .requestPermissions();
-                          }
-                          await ref
-                              .read(settingsProvider.notifier)
-                              .setNotifications(val);
-                        },
-                      ),
-                      if (settings.notificationsEnabled) ...[
-                        const Divider(height: 1),
-                        ListTile(
-                          contentPadding: EdgeInsets.zero,
-                          leading: const Icon(Icons.send_rounded),
-                          title: const Text('Send Test Reminder'),
-                          subtitle: const Text(
-                            'Verify notification permissions on your device',
-                          ),
-                          trailing: TextButton(
-                            onPressed: () async {
-                              await NotificationService.instance.showReminder(
-                                id: 999,
-                                title: 'DailyCart Reminder 🛒',
-                                body:
-                                    'Don’t forget to check your grocery list!',
-                              );
-                              if (context.mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Test notification sent!'),
-                                  ),
-                                );
-                              }
-                            },
-                            child: const Text('Test'),
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              // Security & Privacy
-              _buildSectionHeader('Security & Privacy', isDark),
-              Card(
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  side: BorderSide(
-                    color: isDark
-                        ? const Color(0xFF2A2A2A)
-                        : const Color(0xFFE8E8E8),
-                  ),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Column(
-                    children: [
-                      SwitchListTile(
-                        contentPadding: EdgeInsets.zero,
-                        secondary: const Icon(Icons.fingerprint_rounded),
-                        title: const Text('App Lock (Biometric / PIN)'),
-                        subtitle: const Text(
-                          'Require authentication when opening DailyCart',
-                        ),
-                        value: settings.appLockEnabled,
-                        onChanged: (val) async {
-                          if (val) {
-                            final localAuth = LocalAuthentication();
-                            final canAuth =
-                                await localAuth.canCheckBiometrics ||
-                                await localAuth.isDeviceSupported();
-                            if (!canAuth) {
-                              if (context.mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text(
-                                      'Device does not support biometric or PIN authentication.',
-                                    ),
-                                  ),
-                                );
-                              }
-                              return;
-                            }
-                          }
-                          await ref
-                              .read(settingsProvider.notifier)
-                              .setAppLock(val);
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              // Data & Backup
-              _buildSectionHeader('Data Safety', isDark),
-              Card(
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  side: BorderSide(
-                    color: isDark
-                        ? const Color(0xFF2A2A2A)
-                        : const Color(0xFFE8E8E8),
-                  ),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Column(
-                    children: [
-                      ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        leading: const Icon(Icons.backup_outlined),
-                        title: const Text('Backup & Restore Data'),
-                        subtitle: const Text(
-                          'Export JSON/CSV or restore from local backup',
-                        ),
-                        trailing: const Icon(
-                          Icons.chevron_right_rounded,
-                          size: 20,
-                        ),
-                        onTap: () => context.push(AppRoutes.backup),
-                      ),
-                      const Divider(height: 1),
-                      ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        leading: const Icon(Icons.restart_alt_rounded),
-                        title: const Text('View Onboarding Guide Again'),
-                        subtitle: const Text('Show initial setup walkthrough'),
-                        onTap: () {
-                          context.go(AppRoutes.onboarding);
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              // About Section
-              _buildSectionHeader('About DailyCart', isDark),
-              Card(
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  side: BorderSide(
-                    color: isDark
-                        ? const Color(0xFF2A2A2A)
-                        : const Color(0xFFE8E8E8),
-                  ),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    children: [
-                      const Row(
-                        children: [
-                          AppLogoWidget(
-                            size: 48,
-                            borderRadius: 14,
-                            showShadow: false,
-                          ),
-                          SizedBox(width: 14),
-                          Column(
+                          child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                AppConstants.appName,
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w700,
-                                ),
+                              Row(
+                                children: [
+                                  _buildSettingIcon(
+                                    icon: Icons.brightness_6_rounded,
+                                    color: AppColors.secondary,
+                                  ),
+                                  const SizedBox(width: 14),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        const Text(
+                                          'Theme Mode',
+                                          style: TextStyle(
+                                            fontSize: 15,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 1),
+                                        Text(
+                                          _themeModeLabel(settings.themeMode),
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: isDark
+                                                ? AppColors.textSecondaryDark
+                                                : AppColors.textSecondary,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
                               ),
-                              SizedBox(height: 2),
-                              Text(
-                                'Version 1.0.0 (Local-First)',
-                                style: TextStyle(fontSize: 12),
+                              const SizedBox(height: 12),
+                              // Segmented theme picker pills
+                              Row(
+                                children: [
+                                  _buildThemePill(
+                                    context,
+                                    ref,
+                                    label: 'System',
+                                    icon: Icons.smartphone_rounded,
+                                    isSelected: settings.themeMode ==
+                                        ThemeMode.system,
+                                    mode: ThemeMode.system,
+                                    isDark: isDark,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  _buildThemePill(
+                                    context,
+                                    ref,
+                                    label: 'Light',
+                                    icon: Icons.light_mode_rounded,
+                                    isSelected:
+                                        settings.themeMode == ThemeMode.light,
+                                    mode: ThemeMode.light,
+                                    isDark: isDark,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  _buildThemePill(
+                                    context,
+                                    ref,
+                                    label: 'Dark',
+                                    icon: Icons.dark_mode_rounded,
+                                    isSelected:
+                                        settings.themeMode == ThemeMode.dark,
+                                    mode: ThemeMode.dark,
+                                    isDark: isDark,
+                                  ),
+                                ],
                               ),
                             ],
                           ),
-                        ],
-                      ),
-                      const SizedBox(height: 14),
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: AppColors.success.withAlpha(15),
-                          borderRadius: BorderRadius.circular(12),
                         ),
-                        child: const Row(
-                          children: [
-                            Icon(
-                              Icons.verified_user_outlined,
-                              color: AppColors.success,
-                              size: 20,
+                        const Divider(height: 1),
+                        SwitchListTile(
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 4,
+                          ),
+                          secondary: _buildSettingIcon(
+                            icon: Icons.animation_rounded,
+                            color: AppColors.accentPurple,
+                          ),
+                          title: const Text(
+                            'Reduced Motion',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
                             ),
-                            SizedBox(width: 10),
-                            Expanded(
-                              child: Text(
-                                '100% Offline • No Cloud Accounts • Encrypted Local SQLite',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColors.success,
+                          ),
+                          subtitle: Text(
+                            'Minimizes animations for faster UI response',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: isDark
+                                  ? AppColors.textSecondaryDark
+                                  : AppColors.textSecondary,
+                            ),
+                          ),
+                          value: settings.reducedMotion,
+                          onChanged: (val) {
+                            HapticFeedback.lightImpact();
+                            ref
+                                .read(settingsProvider.notifier)
+                                .setReducedMotion(val);
+                          },
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // Preferences Section
+              FadeSlideTransition(
+                delay: const Duration(milliseconds: 100),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildSectionHeader('PREFERENCES', isDark),
+                    _buildSettingsCard(
+                      isDark: isDark,
+                      children: [
+                        ListTile(
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 2,
+                          ),
+                          leading: _buildSettingIcon(
+                            icon: Icons.currency_rupee_rounded,
+                            color: AppColors.accentAmber,
+                          ),
+                          title: const Text(
+                            'Currency',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          subtitle: const Text(
+                            'Indian Rupee (₹ INR)',
+                            style: TextStyle(fontSize: 12),
+                          ),
+                          trailing: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 3,
+                            ),
+                            decoration: BoxDecoration(
+                              color: isDark
+                                  ? const Color(0xFF1E293B)
+                                  : const Color(0xFFF1F5F9),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Text(
+                              'Fixed',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const Divider(height: 1),
+                        SwitchListTile(
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 4,
+                          ),
+                          secondary: _buildSettingIcon(
+                            icon: Icons.vibration_rounded,
+                            color: AppColors.primaryLight,
+                          ),
+                          title: const Text(
+                            'Haptic Feedback',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          subtitle: const Text(
+                            'Tactile response on checkbox and button taps',
+                            style: TextStyle(fontSize: 12),
+                          ),
+                          value: settings.hapticsEnabled,
+                          onChanged: (val) {
+                            HapticFeedback.mediumImpact();
+                            ref
+                                .read(settingsProvider.notifier)
+                                .setHaptics(val);
+                          },
+                        ),
+                        const Divider(height: 1),
+                        ListTile(
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 2,
+                          ),
+                          leading: _buildSettingIcon(
+                            icon: Icons.category_rounded,
+                            color: AppColors.accentCyan,
+                          ),
+                          title: const Text(
+                            'Manage Categories',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          subtitle: const Text(
+                            'Organize aisles and custom categories',
+                            style: TextStyle(fontSize: 12),
+                          ),
+                          trailing: const Icon(
+                            Icons.chevron_right_rounded,
+                            size: 20,
+                          ),
+                          onTap: () => CategoriesSheet.show(context),
+                        ),
+                        const Divider(height: 1),
+                        ListTile(
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 2,
+                          ),
+                          leading: _buildSettingIcon(
+                            icon: Icons.copy_rounded,
+                            color: AppColors.secondary,
+                          ),
+                          title: const Text(
+                            'Shopping Templates',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          subtitle: const Text(
+                            'Weekly & custom grocery templates',
+                            style: TextStyle(fontSize: 12),
+                          ),
+                          trailing: const Icon(
+                            Icons.chevron_right_rounded,
+                            size: 20,
+                          ),
+                          onTap: () => context.push(AppRoutes.templates),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // Notifications Section
+              FadeSlideTransition(
+                delay: const Duration(milliseconds: 160),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildSectionHeader('NOTIFICATIONS', isDark),
+                    _buildSettingsCard(
+                      isDark: isDark,
+                      children: [
+                        SwitchListTile(
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 4,
+                          ),
+                          secondary: _buildSettingIcon(
+                            icon: Icons.notifications_active_rounded,
+                            color: AppColors.error,
+                          ),
+                          title: const Text(
+                            'Local Notifications',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          subtitle: const Text(
+                            'Shopping reminders & schedule alerts',
+                            style: TextStyle(fontSize: 12),
+                          ),
+                          value: settings.notificationsEnabled,
+                          onChanged: (val) async {
+                            HapticFeedback.lightImpact();
+                            if (val) {
+                              await NotificationService.instance
+                                  .requestPermissions();
+                            }
+                            await ref
+                                .read(settingsProvider.notifier)
+                                .setNotifications(val);
+                          },
+                        ),
+                        if (settings.notificationsEnabled) ...[
+                          const Divider(height: 1),
+                          ListTile(
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 2,
+                            ),
+                            leading: _buildSettingIcon(
+                              icon: Icons.send_rounded,
+                              color: AppColors.primaryLight,
+                            ),
+                            title: const Text(
+                              'Send Test Reminder',
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            subtitle: const Text(
+                              'Verify push notification permissions',
+                              style: TextStyle(fontSize: 12),
+                            ),
+                            trailing: BouncyTap(
+                              onTap: () async {
+                                HapticFeedback.lightImpact();
+                                await NotificationService.instance.showReminder(
+                                  id: 999,
+                                  title: 'DailyCart Reminder 🛒',
+                                  body:
+                                      'Don’t forget to check your grocery list!',
+                                );
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Test notification sent!'),
+                                    ),
+                                  );
+                                }
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 6,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: isDark
+                                      ? const Color(0xFF1E293B)
+                                      : const Color(0xFFF1F5F9),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: const Text(
+                                  'Test',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                  ),
                                 ),
                               ),
                             ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: 20),
+
+              // Security & Privacy
+              FadeSlideTransition(
+                delay: const Duration(milliseconds: 220),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildSectionHeader('SECURITY & DATA', isDark),
+                    _buildSettingsCard(
+                      isDark: isDark,
+                      children: [
+                        SwitchListTile(
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 4,
+                          ),
+                          secondary: _buildSettingIcon(
+                            icon: Icons.fingerprint_rounded,
+                            color: AppColors.secondary,
+                          ),
+                          title: const Text(
+                            'App Lock (Biometric / PIN)',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          subtitle: const Text(
+                            'Require authentication when launching DailyCart',
+                            style: TextStyle(fontSize: 12),
+                          ),
+                          value: settings.appLockEnabled,
+                          onChanged: (val) async {
+                            HapticFeedback.lightImpact();
+                            if (val) {
+                              final localAuth = LocalAuthentication();
+                              final canAuth =
+                                  await localAuth.canCheckBiometrics ||
+                                  await localAuth.isDeviceSupported();
+                              if (!canAuth) {
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text(
+                                        'Device does not support biometric or PIN authentication.',
+                                      ),
+                                    ),
+                                  );
+                                }
+                                return;
+                              }
+                            }
+                            await ref
+                                .read(settingsProvider.notifier)
+                                .setAppLock(val);
+                          },
+                        ),
+                        const Divider(height: 1),
+                        ListTile(
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 2,
+                          ),
+                          leading: _buildSettingIcon(
+                            icon: Icons.backup_rounded,
+                            color: AppColors.accentCyan,
+                          ),
+                          title: const Text(
+                            'Backup & Restore Data',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          subtitle: const Text(
+                            'Export JSON/CSV or restore from local backup',
+                            style: TextStyle(fontSize: 12),
+                          ),
+                          trailing: const Icon(
+                            Icons.chevron_right_rounded,
+                            size: 20,
+                          ),
+                          onTap: () => context.push(AppRoutes.backup),
+                        ),
+                        const Divider(height: 1),
+                        ListTile(
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 2,
+                          ),
+                          leading: _buildSettingIcon(
+                            icon: Icons.restart_alt_rounded,
+                            color: AppColors.primaryLight,
+                          ),
+                          title: const Text(
+                            'View Onboarding Guide',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          subtitle: const Text(
+                            'Revisit initial setup walkthrough',
+                            style: TextStyle(fontSize: 12),
+                          ),
+                          onTap: () {
+                            context.go(AppRoutes.onboarding);
+                          },
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // About Section
+              FadeSlideTransition(
+                delay: const Duration(milliseconds: 280),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildSectionHeader('ABOUT DAILYCART', isDark),
+                    Container(
+                      padding: const EdgeInsets.all(18),
+                      decoration: BoxDecoration(
+                        color: isDark ? AppColors.cardDark : Colors.white,
+                        borderRadius: BorderRadius.circular(22),
+                        border: Border.all(
+                          color: isDark
+                              ? AppColors.borderDark
+                              : AppColors.borderLight,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: isDark
+                                ? Colors.black.withValues(alpha: 0.2)
+                                : Colors.black.withValues(alpha: 0.03),
+                            blurRadius: 10,
+                            offset: const Offset(0, 3),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        children: [
+                          const Row(
+                            children: [
+                              AppLogoWidget(
+                                size: 52,
+                                borderRadius: 14,
+                                showShadow: true,
+                              ),
+                              SizedBox(width: 14),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    AppConstants.appName,
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w800,
+                                      letterSpacing: -0.3,
+                                    ),
+                                  ),
+                                  SizedBox(height: 2),
+                                  Text(
+                                    'Version 1.0.0 • Local-First Suite',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: AppColors.success.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            child: const Row(
+                              children: [
+                                Icon(
+                                  Icons.shield_rounded,
+                                  color: AppColors.success,
+                                  size: 20,
+                                ),
+                                SizedBox(width: 10),
+                                Expanded(
+                                  child: Text(
+                                    '100% Offline • Private SQLite • Zero Cloud Tracking',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w700,
+                                      color: AppColors.success,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ],
           );
         },
@@ -437,12 +643,116 @@ class SettingsScreen extends ConsumerWidget {
     return Padding(
       padding: const EdgeInsets.only(left: 4, bottom: 8),
       child: Text(
-        title.toUpperCase(),
+        title,
         style: TextStyle(
           fontSize: 11,
-          fontWeight: FontWeight.w700,
-          letterSpacing: 0.8,
+          fontWeight: FontWeight.w800,
+          letterSpacing: 1.1,
           color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondary,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSettingsCard({
+    required bool isDark,
+    required List<Widget> children,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.cardDark : Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: isDark ? AppColors.borderDark : AppColors.borderLight,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: isDark
+                ? Colors.black.withValues(alpha: 0.2)
+                : Colors.black.withValues(alpha: 0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(children: children),
+    );
+  }
+
+  Widget _buildSettingIcon({required IconData icon, required Color color}) {
+    return Container(
+      width: 34,
+      height: 34,
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Center(child: Icon(icon, color: color, size: 18)),
+    );
+  }
+
+  Widget _buildThemePill(
+    BuildContext context,
+    WidgetRef ref, {
+    required String label,
+    required IconData icon,
+    required bool isSelected,
+    required ThemeMode mode,
+    required bool isDark,
+  }) {
+    return Expanded(
+      child: BouncyTap(
+        scaleFactor: 0.94,
+        onTap: () {
+          HapticFeedback.selectionClick();
+          ref.read(settingsProvider.notifier).setThemeMode(mode);
+        },
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          decoration: BoxDecoration(
+            color: isSelected
+                ? (isDark
+                    ? AppColors.primaryNeon.withValues(alpha: 0.2)
+                    : AppColors.primary.withValues(alpha: 0.12))
+                : (isDark
+                    ? const Color(0xFF1E293B)
+                    : const Color(0xFFF1F5F9)),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: isSelected
+                  ? (isDark ? AppColors.primaryNeon : AppColors.primary)
+                  : Colors.transparent,
+              width: 1.5,
+            ),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                icon,
+                size: 15,
+                color: isSelected
+                    ? (isDark ? AppColors.primaryNeon : AppColors.primary)
+                    : (isDark
+                        ? AppColors.textSecondaryDark
+                        : AppColors.textSecondary),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                  color: isSelected
+                      ? (isDark ? AppColors.primaryNeon : AppColors.primary)
+                      : (isDark
+                          ? AppColors.textSecondaryDark
+                          : AppColors.textSecondary),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

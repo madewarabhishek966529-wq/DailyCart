@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:dailycart/core/constants/app_constants.dart';
@@ -11,9 +12,11 @@ import 'package:dailycart/providers/grocery_item_provider.dart';
 import 'package:dailycart/providers/history_provider.dart';
 import 'package:dailycart/providers/shopping_list_provider.dart';
 import 'package:dailycart/widgets/common/animated_count_text.dart';
+import 'package:dailycart/widgets/common/bouncy_tap.dart';
 import 'package:dailycart/widgets/common/empty_state_widget.dart';
 import 'package:dailycart/widgets/shopping/add_edit_item_sheet.dart';
 import 'package:dailycart/widgets/shopping/item_tile_widget.dart';
+import 'package:dailycart/widgets/shopping/progress_bar_widget.dart';
 
 enum ItemFilter { all, toBuy, purchased, highPriority }
 
@@ -68,26 +71,32 @@ class _ShoppingScreenState extends ConsumerState<ShoppingScreen> {
 
         return Scaffold(
           appBar: AppBar(
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
+              onPressed: () => context.pop(),
+            ),
             title: Text(
               shoppingList.name,
-              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 18),
+              style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
             ),
             actions: [
               // Toggle List / Category view
               IconButton(
                 icon: Icon(
                   _isCategoryView
-                      ? Icons.view_list_rounded
-                      : Icons.category_outlined,
+                      ? Icons.view_agenda_outlined
+                      : Icons.grid_view_rounded,
+                  size: 20,
                 ),
                 tooltip: _isCategoryView ? 'List View' : 'Category View',
                 onPressed: () {
+                  HapticFeedback.lightImpact();
                   setState(() => _isCategoryView = !_isCategoryView);
                 },
               ),
               // Sort menu
               PopupMenuButton<ItemSort>(
-                icon: const Icon(Icons.sort_rounded),
+                icon: const Icon(Icons.sort_rounded, size: 22),
                 tooltip: 'Sort items',
                 onSelected: (sort) {
                   setState(() => _selectedSort = sort);
@@ -125,7 +134,7 @@ class _ShoppingScreenState extends ConsumerState<ShoppingScreen> {
               ),
               // Options menu
               PopupMenuButton<String>(
-                icon: const Icon(Icons.more_vert),
+                icon: const Icon(Icons.more_vert_rounded),
                 onSelected: (action) =>
                     _handleListMenuAction(context, action, shoppingList),
                 itemBuilder: (context) => [
@@ -134,7 +143,7 @@ class _ShoppingScreenState extends ConsumerState<ShoppingScreen> {
                     child: Row(
                       children: [
                         Icon(
-                          Icons.check_circle_outline,
+                          Icons.check_circle_outline_rounded,
                           color: AppColors.success,
                           size: 18,
                         ),
@@ -176,19 +185,13 @@ class _ShoppingScreenState extends ConsumerState<ShoppingScreen> {
                   ),
                 ],
               ),
-              IconButton(
-                icon: const Icon(Icons.add_circle_outline_rounded, size: 24),
-                tooltip: 'Add Grocery Item',
-                onPressed: () =>
-                    AddEditItemSheet.show(context, listId: widget.listId),
-              ),
             ],
           ),
           body: itemsAsync.when(
             data: (items) {
               return Column(
                 children: [
-                  // Budget & Progress Header
+                  // Budget & Progress Header Card
                   _buildBudgetAndProgressCard(shoppingList, items, isDark),
 
                   // Search & Filter row
@@ -223,9 +226,8 @@ class _ShoppingScreenState extends ConsumerState<ShoppingScreen> {
   ) {
     final totalItems = items.length;
     final purchasedItems = items.where((i) => i.isPurchased).length;
-    final progress = totalItems > 0
-        ? (purchasedItems / totalItems).clamp(0.0, 1.0)
-        : 0.0;
+    final progress =
+        totalItems > 0 ? (purchasedItems / totalItems).clamp(0.0, 1.0) : 0.0;
 
     final estimatedTotal = items.fold<double>(
       0.0,
@@ -248,55 +250,82 @@ class _ShoppingScreenState extends ConsumerState<ShoppingScreen> {
         hasBudget && estimatedTotal >= list.budget * 0.85 && !isOverBudget;
 
     return Container(
-      margin: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-      padding: const EdgeInsets.all(14),
+      margin: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        color: isDark ? AppColors.cardDark : Colors.white,
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(
           color: isOverBudget
-              ? AppColors.budgetOver
-              : (isDark ? const Color(0xFF2A2A2A) : const Color(0xFFE8E8E8)),
-          width: isOverBudget ? 1.5 : 0.8,
+              ? AppColors.budgetOver.withValues(alpha: 0.5)
+              : (isDark ? AppColors.borderDark : AppColors.borderLight),
+          width: isOverBudget ? 1.5 : 1,
         ),
+        boxShadow: [
+          BoxShadow(
+            color: isDark
+                ? Colors.black.withValues(alpha: 0.25)
+                : Colors.black.withValues(alpha: 0.04),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Column(
         children: [
-          // Progress numbers: "8 / 15 items"
+          // Progress & Percent
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                '$purchasedItems / $totalItems completed',
-                style: const TextStyle(
-                  fontWeight: FontWeight.w600,
-                  fontSize: 13,
-                ),
+              Row(
+                children: [
+                  Container(
+                    width: 8,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      color: progress == 1.0
+                          ? AppColors.success
+                          : AppColors.primaryLight,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    '$purchasedItems of $totalItems items gathered',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 13,
+                    ),
+                  ),
+                ],
               ),
-              Text(
-                '${(progress * 100).toInt()}%',
-                style: const TextStyle(
-                  fontWeight: FontWeight.w700,
-                  fontSize: 13,
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: isDark
+                      ? const Color(0xFF1E293B)
+                      : const Color(0xFFF1F5F9),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  '${(progress * 100).toInt()}%',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 12,
+                  ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 6),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(6),
-            child: LinearProgressIndicator(
-              value: progress,
-              minHeight: 8,
-              backgroundColor: isDark
-                  ? Colors.white12
-                  : const Color(0xFFEEEEEE),
-              valueColor: AlwaysStoppedAnimation<Color>(
-                progress == 1.0 ? AppColors.success : AppColors.primary,
-              ),
-            ),
-          ),
           const SizedBox(height: 10),
+
+          // Animated Gradient Progress Bar
+          ProgressBarWidget(
+            value: progress,
+            height: 8,
+            borderRadius: 6,
+          ),
+          const SizedBox(height: 12),
 
           // Budget row
           Row(
@@ -306,41 +335,47 @@ class _ShoppingScreenState extends ConsumerState<ShoppingScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Estimated: ${FormatUtils.formatCurrency(estimatedTotal)}',
+                    'Estimated Cart Total',
                     style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
+                      fontSize: 11,
                       color: isDark
                           ? AppColors.textSecondaryDark
                           : AppColors.textSecondary,
                     ),
                   ),
-                  if (purchasedItems > 0)
-                    Text(
-                      'Actual so far: ${FormatUtils.formatCurrency(actualTotal)}',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.success,
-                      ),
+                  const SizedBox(height: 1),
+                  Text(
+                    FormatUtils.formatCurrency(estimatedTotal),
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
                     ),
+                  ),
                 ],
               ),
               if (hasBudget)
                 Container(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
+                    horizontal: 10,
                     vertical: 4,
                   ),
                   decoration: BoxDecoration(
-                    color:
-                        (isOverBudget
-                                ? AppColors.budgetOver
-                                : (isNearBudget
-                                      ? AppColors.budgetWarning
-                                      : AppColors.budgetSafe))
-                            .withAlpha(20),
-                    borderRadius: BorderRadius.circular(8),
+                    color: (isOverBudget
+                            ? AppColors.budgetOver
+                            : (isNearBudget
+                                ? AppColors.budgetWarning
+                                : AppColors.budgetSafe))
+                        .withValues(alpha: 0.14),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: (isOverBudget
+                              ? AppColors.budgetOver
+                              : (isNearBudget
+                                  ? AppColors.budgetWarning
+                                  : AppColors.budgetSafe))
+                          .withValues(alpha: 0.3),
+                      width: 0.8,
+                    ),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.end,
@@ -353,8 +388,8 @@ class _ShoppingScreenState extends ConsumerState<ShoppingScreen> {
                           color: isOverBudget
                               ? AppColors.budgetOver
                               : (isNearBudget
-                                    ? AppColors.budgetWarning
-                                    : AppColors.budgetSafe),
+                                  ? AppColors.budgetWarning
+                                  : AppColors.budgetSafe),
                         ),
                       ),
                       Text(
@@ -363,16 +398,40 @@ class _ShoppingScreenState extends ConsumerState<ShoppingScreen> {
                             : '${FormatUtils.formatCurrencyCompact(list.budget - estimatedTotal)} left',
                         style: TextStyle(
                           fontSize: 10,
-                          fontWeight: FontWeight.w700,
+                          fontWeight: FontWeight.w800,
                           color: isOverBudget
                               ? AppColors.budgetOver
                               : (isNearBudget
-                                    ? AppColors.budgetWarning
-                                    : AppColors.budgetSafe),
+                                  ? AppColors.budgetWarning
+                                  : AppColors.budgetSafe),
                         ),
                       ),
                     ],
                   ),
+                )
+              else if (purchasedItems > 0)
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      'Actual in Cart',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: isDark
+                            ? AppColors.textSecondaryDark
+                            : AppColors.textSecondary,
+                      ),
+                    ),
+                    const SizedBox(height: 1),
+                    Text(
+                      FormatUtils.formatCurrency(actualTotal),
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.success,
+                      ),
+                    ),
+                  ],
                 ),
             ],
           ),
@@ -390,11 +449,11 @@ class _ShoppingScreenState extends ConsumerState<ShoppingScreen> {
           TextField(
             controller: _searchController,
             decoration: InputDecoration(
-              hintText: 'Search items, categories, notes...',
-              prefixIcon: const Icon(Icons.search, size: 20),
+              hintText: 'Search items, categories...',
+              prefixIcon: const Icon(Icons.search_rounded, size: 20),
               suffixIcon: _searchQuery.isNotEmpty
                   ? IconButton(
-                      icon: const Icon(Icons.clear, size: 18),
+                      icon: const Icon(Icons.clear_rounded, size: 18),
                       onPressed: () {
                         _searchController.clear();
                         setState(() => _searchQuery = '');
@@ -403,51 +462,84 @@ class _ShoppingScreenState extends ConsumerState<ShoppingScreen> {
                   : null,
               contentPadding: const EdgeInsets.symmetric(
                 horizontal: 14,
-                vertical: 8,
+                vertical: 10,
               ),
             ),
             onChanged: (val) {
               setState(() => _searchQuery = val.trim().toLowerCase());
             },
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 8),
 
-          // Filter chips
+          // Filter pills
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
             child: Row(
               children: [
-                _buildFilterChip('All', ItemFilter.all),
-                const SizedBox(width: 6),
-                _buildFilterChip('To Buy', ItemFilter.toBuy),
-                const SizedBox(width: 6),
-                _buildFilterChip('Purchased', ItemFilter.purchased),
-                const SizedBox(width: 6),
-                _buildFilterChip('High Priority', ItemFilter.highPriority),
+                _buildFilterChip('All', ItemFilter.all, isDark),
+                const SizedBox(width: 8),
+                _buildFilterChip('To Buy', ItemFilter.toBuy, isDark),
+                const SizedBox(width: 8),
+                _buildFilterChip('Purchased', ItemFilter.purchased, isDark),
+                const SizedBox(width: 8),
+                _buildFilterChip(
+                  'High Priority',
+                  ItemFilter.highPriority,
+                  isDark,
+                ),
               ],
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 8),
         ],
       ),
     );
   }
 
-  Widget _buildFilterChip(String label, ItemFilter filter) {
+  Widget _buildFilterChip(String label, ItemFilter filter, bool isDark) {
     final isSelected = _selectedFilter == filter;
-    return ChoiceChip(
-      label: Text(label, style: const TextStyle(fontSize: 12)),
-      selected: isSelected,
-      padding: EdgeInsets.zero,
-      onSelected: (sel) {
-        if (sel) setState(() => _selectedFilter = filter);
+    return BouncyTap(
+      scaleFactor: 0.94,
+      onTap: () {
+        HapticFeedback.selectionClick();
+        setState(() => _selectedFilter = filter);
       },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? (isDark
+                  ? AppColors.primaryNeon.withValues(alpha: 0.18)
+                  : AppColors.primary.withValues(alpha: 0.12))
+              : (isDark ? AppColors.cardDark : Colors.white),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isSelected
+                ? (isDark ? AppColors.primaryNeon : AppColors.primary)
+                : (isDark ? AppColors.borderDark : AppColors.borderLight),
+            width: isSelected ? 1.5 : 1,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+            color: isSelected
+                ? (isDark ? AppColors.primaryNeon : AppColors.primary)
+                : (isDark
+                    ? AppColors.textSecondaryDark
+                    : AppColors.textSecondary),
+          ),
+        ),
+      ),
     );
   }
 
   List<GroceryItemModel> _applyFilterAndSort(List<GroceryItemModel> items) {
     final filtered = items.where((item) {
-      // Filter tab
       if (_selectedFilter == ItemFilter.toBuy && item.isPurchased) {
         return false;
       }
@@ -458,29 +550,25 @@ class _ShoppingScreenState extends ConsumerState<ShoppingScreen> {
           item.priority != ItemPriority.high) {
         return false;
       }
-      // Search query
       if (_searchQuery.isNotEmpty) {
-        final nameMatch = item.name.toLowerCase().contains(_searchQuery);
-        final noteMatch =
-            item.note != null &&
-            item.note!.toLowerCase().contains(_searchQuery);
+        final q = _searchQuery;
+        final nameMatch = item.name.toLowerCase().contains(q);
         final catMatch =
             item.categoryName != null &&
-            item.categoryName!.toLowerCase().contains(_searchQuery);
-        if (!nameMatch && !noteMatch && !catMatch) return false;
+            item.categoryName!.toLowerCase().contains(q);
+        final noteMatch =
+            item.note != null && item.note!.toLowerCase().contains(q);
+        if (!nameMatch && !catMatch && !noteMatch) return false;
       }
       return true;
     }).toList();
 
-    // Sort
     switch (_selectedSort) {
       case ItemSort.custom:
         filtered.sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
         break;
       case ItemSort.name:
-        filtered.sort(
-          (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
-        );
+        filtered.sort((a, b) => a.name.compareTo(b.name));
         break;
       case ItemSort.category:
         filtered.sort(
@@ -488,14 +576,7 @@ class _ShoppingScreenState extends ConsumerState<ShoppingScreen> {
         );
         break;
       case ItemSort.priority:
-        final order = {
-          ItemPriority.high: 0,
-          ItemPriority.normal: 1,
-          ItemPriority.low: 2,
-        };
-        filtered.sort(
-          (a, b) => order[a.priority]!.compareTo(order[b.priority]!),
-        );
+        filtered.sort((a, b) => b.priority.index.compareTo(a.priority.index));
         break;
       case ItemSort.priceHigh:
         filtered.sort((a, b) => b.totalPrice.compareTo(a.totalPrice));
@@ -519,12 +600,31 @@ class _ShoppingScreenState extends ConsumerState<ShoppingScreen> {
     if (rawItems.isEmpty) {
       return EmptyStateWidget(
         icon: Icons.add_shopping_cart_rounded,
-        message: 'No items in this list yet.\nTap "+ Add Item" below!',
-        action: FilledButton.icon(
-          onPressed: () =>
-              AddEditItemSheet.show(context, listId: widget.listId),
-          icon: const Icon(Icons.add, size: 18),
-          label: const Text('Add Grocery Item'),
+        title: 'Empty Shopping Cart',
+        message: 'Tap "+ Add Item" below to begin planning your groceries.',
+        action: BouncyTap(
+          onTap: () => AddEditItemSheet.show(context, listId: widget.listId),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+            decoration: BoxDecoration(
+              gradient: AppColors.primaryGradient,
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.add_rounded, size: 18, color: Colors.white),
+                SizedBox(width: 6),
+                Text(
+                  'Add Grocery Item',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       );
     }
@@ -534,7 +634,8 @@ class _ShoppingScreenState extends ConsumerState<ShoppingScreen> {
     if (filtered.isEmpty) {
       return const EmptyStateWidget(
         icon: Icons.search_off_rounded,
-        message: 'No items match your search or filter.',
+        title: 'No Matching Items',
+        message: 'Try clearing the search query or adjusting the filter.',
       );
     }
 
@@ -558,7 +659,11 @@ class _ShoppingScreenState extends ConsumerState<ShoppingScreen> {
         children: [
           // TO BUY SECTION
           if (toBuyItems.isNotEmpty || _selectedFilter == ItemFilter.toBuy) ...[
-            _buildSectionHeader('TO BUY', toBuyItems.length, AppColors.primary),
+            _buildSectionHeader(
+              'TO BUY',
+              toBuyItems.length,
+              AppColors.primaryLight,
+            ),
             if (_selectedSort == ItemSort.custom)
               ReorderableListView.builder(
                 shrinkWrap: true,
@@ -616,9 +721,11 @@ class _ShoppingScreenState extends ConsumerState<ShoppingScreen> {
           if (purchasedItems.isNotEmpty) ...[
             const SizedBox(height: 16),
             InkWell(
-              borderRadius: BorderRadius.circular(8),
-              onTap: () =>
-                  setState(() => _purchasedExpanded = !_purchasedExpanded),
+              borderRadius: BorderRadius.circular(10),
+              onTap: () {
+                HapticFeedback.selectionClick();
+                setState(() => _purchasedExpanded = !_purchasedExpanded);
+              },
               child: Padding(
                 padding: const EdgeInsets.symmetric(vertical: 4),
                 child: Row(
@@ -634,10 +741,10 @@ class _ShoppingScreenState extends ConsumerState<ShoppingScreen> {
                     Text(
                       'PURCHASED (${purchasedItems.length})',
                       style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
                         color: AppColors.success,
-                        letterSpacing: 0.5,
+                        letterSpacing: 0.6,
                       ),
                     ),
                   ],
@@ -674,10 +781,10 @@ class _ShoppingScreenState extends ConsumerState<ShoppingScreen> {
       child: Text(
         '$title ($count)',
         style: TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w700,
+          fontSize: 11,
+          fontWeight: FontWeight.w800,
           color: color,
-          letterSpacing: 0.5,
+          letterSpacing: 0.8,
         ),
       ),
     );
@@ -715,7 +822,7 @@ class _ShoppingScreenState extends ConsumerState<ShoppingScreen> {
                     '$categoryName (${catItems.length})',
                     style: const TextStyle(
                       fontSize: 13,
-                      fontWeight: FontWeight.w700,
+                      fontWeight: FontWeight.w800,
                       letterSpacing: 0.3,
                     ),
                   ),
@@ -764,15 +871,22 @@ class _ShoppingScreenState extends ConsumerState<ShoppingScreen> {
     final allPurchased = items.isNotEmpty && purchasedCount == items.length;
 
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+        color: isDark ? const Color(0xFF131A29) : Colors.white,
         border: Border(
           top: BorderSide(
-            color: isDark ? const Color(0xFF2A2A2A) : const Color(0xFFE8E8E8),
-            width: 0.8,
+            color: isDark ? AppColors.borderDark : AppColors.borderLight,
+            width: 1,
           ),
         ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, -2),
+          ),
+        ],
       ),
       child: SafeArea(
         top: false,
@@ -784,9 +898,10 @@ class _ShoppingScreenState extends ConsumerState<ShoppingScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    '$purchasedCount of ${items.length} items checked',
+                    '$purchasedCount of ${items.length} in cart',
                     style: TextStyle(
                       fontSize: 12,
+                      fontWeight: FontWeight.w500,
                       color: isDark
                           ? AppColors.textSecondaryDark
                           : AppColors.textSecondary,
@@ -797,49 +912,101 @@ class _ShoppingScreenState extends ConsumerState<ShoppingScreen> {
                     value: list.estimatedTotal,
                     isCurrency: true,
                     style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
+                      fontSize: 17,
+                      fontWeight: FontWeight.w800,
                     ),
                   ),
                 ],
               ),
             ),
-            OutlinedButton.icon(
-              style: OutlinedButton.styleFrom(
-                foregroundColor: AppColors.primary,
-                side: const BorderSide(color: AppColors.primary, width: 1.2),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 10,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-              onPressed: () =>
+            BouncyTap(
+              onTap: () =>
                   AddEditItemSheet.show(context, listId: widget.listId),
-              icon: const Icon(Icons.add, size: 18),
-              label: const Text('Add Item'),
-            ),
-            const SizedBox(width: 8),
-            FilledButton.icon(
-              style: FilledButton.styleFrom(
-                backgroundColor: allPurchased
-                    ? AppColors.success
-                    : AppColors.primary,
+              child: Container(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 14,
                   vertical: 10,
                 ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
+                decoration: BoxDecoration(
+                  color: isDark
+                      ? const Color(0xFF1E293B)
+                      : const Color(0xFFF1F5F9),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: isDark
+                        ? AppColors.borderDark
+                        : AppColors.borderLight,
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.add_rounded,
+                      size: 18,
+                      color: isDark
+                          ? AppColors.textPrimaryDark
+                          : AppColors.textPrimary,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Add Item',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: isDark
+                            ? AppColors.textPrimaryDark
+                            : AppColors.textPrimary,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              onPressed: items.isEmpty
+            ),
+            const SizedBox(width: 8),
+            BouncyTap(
+              onTap: items.isEmpty
                   ? null
                   : () => _finishShoppingSession(context, list, items),
-              icon: const Icon(Icons.check, size: 18),
-              label: Text(allPurchased ? 'Finish Trip' : 'Done'),
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 10,
+                ),
+                decoration: BoxDecoration(
+                  gradient: allPurchased
+                      ? AppColors.emeraldNeonGradient
+                      : AppColors.primaryGradient,
+                  borderRadius: BorderRadius.circular(14),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.primary.withValues(alpha: 0.35),
+                      blurRadius: 10,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.check_circle_rounded,
+                      size: 18,
+                      color: Colors.white,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      allPurchased ? 'Finish Trip' : 'Done',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.2,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
           ],
         ),
@@ -882,6 +1049,7 @@ class _ShoppingScreenState extends ConsumerState<ShoppingScreen> {
           content: Text('Deleted "${item.name}"'),
           action: SnackBarAction(
             label: 'Undo',
+            textColor: AppColors.primaryNeon,
             onPressed: () async {
               await ref
                   .read(groceryItemsProvider(widget.listId).notifier)
@@ -949,53 +1117,80 @@ class _ShoppingScreenState extends ConsumerState<ShoppingScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogCtx) => AlertDialog(
-        title: const Text('Complete Shopping Session?'),
+        title: const Row(
+          children: [
+            Icon(
+              Icons.celebration_rounded,
+              color: AppColors.primaryLight,
+              size: 26,
+            ),
+            SizedBox(width: 10),
+            Text('Complete Trip?'),
+          ],
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               '${purchasedItems.length} of ${items.length} items purchased.',
-              style: const TextStyle(fontWeight: FontWeight.w600),
+              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
             ),
-            const SizedBox(height: 12),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text('Estimated Cost:'),
-                Text(
-                  FormatUtils.formatCurrency(list.estimatedTotal),
-                  style: const TextStyle(fontWeight: FontWeight.w600),
-                ),
-              ],
-            ),
-            const SizedBox(height: 4),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text('Actual Spend:'),
-                Text(
-                  FormatUtils.formatCurrency(actualTotal),
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.success,
+            const SizedBox(height: 14),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? const Color(0xFF1E293B)
+                    : const Color(0xFFF1F5F9),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Column(
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('Estimated Cost:'),
+                      Text(
+                        FormatUtils.formatCurrency(list.estimatedTotal),
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                    ],
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 4),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text('Difference:'),
-                Text(
-                  '${costDiff >= 0 ? '+' : ''}${FormatUtils.formatCurrency(costDiff)}',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    color: costDiff > 0 ? AppColors.error : AppColors.success,
+                  const SizedBox(height: 6),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('Actual Spend:'),
+                      Text(
+                        FormatUtils.formatCurrency(actualTotal),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.success,
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-              ],
+                  if (list.hasBudget) ...[
+                    const Divider(height: 14),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text('Budget Variance:'),
+                        Text(
+                          '${costDiff >= 0 ? '+' : ''}${FormatUtils.formatCurrency(costDiff)}',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w800,
+                            color: costDiff > 0
+                                ? AppColors.error
+                                : AppColors.success,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ],
+              ),
             ),
           ],
         ),
@@ -1006,7 +1201,7 @@ class _ShoppingScreenState extends ConsumerState<ShoppingScreen> {
           ),
           FilledButton(
             onPressed: () => Navigator.of(dialogCtx).pop(true),
-            child: const Text('Complete Trip'),
+            child: const Text('Complete Trip 🎉'),
           ),
         ],
       ),
@@ -1030,9 +1225,20 @@ class _ShoppingScreenState extends ConsumerState<ShoppingScreen> {
       await ref.read(shoppingListsProvider.notifier).complete(list.id!);
 
       if (context.mounted) {
+        HapticFeedback.mediumImpact();
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Shopping completed and saved to history! 🎉'),
+            content: Row(
+              children: [
+                Icon(
+                  Icons.check_circle_rounded,
+                  color: AppColors.primaryNeon,
+                  size: 20,
+                ),
+                SizedBox(width: 8),
+                Text('Trip complete & saved to history! 🎉'),
+              ],
+            ),
           ),
         );
         context.go('/history');
@@ -1057,7 +1263,7 @@ class _ShoppingScreenState extends ConsumerState<ShoppingScreen> {
               controller: nameController,
               decoration: const InputDecoration(labelText: 'List Name *'),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 14),
             TextField(
               controller: budgetController,
               keyboardType: const TextInputType.numberWithOptions(

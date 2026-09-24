@@ -1,13 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:dailycart/core/constants/app_constants.dart';
 import 'package:dailycart/core/theme/app_colors.dart';
 import 'package:dailycart/core/utils/app_date_utils.dart';
 import 'package:dailycart/core/utils/format_utils.dart';
+import 'package:dailycart/core/animations/app_animations.dart';
 import 'package:dailycart/models/shopping_list_model.dart';
 import 'package:dailycart/providers/shopping_list_provider.dart';
+import 'package:dailycart/widgets/common/bouncy_tap.dart';
 import 'package:dailycart/widgets/common/empty_state_widget.dart';
+import 'package:dailycart/widgets/shopping/progress_bar_widget.dart';
 
 enum ListFilter { all, active, completed, archived }
 
@@ -39,29 +43,62 @@ class _ListsScreenState extends ConsumerState<ListsScreen> {
       appBar: AppBar(
         title: const Text(
           'My Lists',
-          style: TextStyle(fontWeight: FontWeight.w700),
+          style: TextStyle(fontWeight: FontWeight.w800, fontSize: 20),
         ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.add_rounded, size: 28),
-            tooltip: 'Create New List',
-            onPressed: () => _showCreateEditDialog(context),
+          Padding(
+            padding: const EdgeInsets.only(right: 12),
+            child: BouncyTap(
+              onTap: () => _showCreateEditDialog(context),
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  gradient: AppColors.primaryGradient,
+                  borderRadius: BorderRadius.circular(14),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.primary.withValues(alpha: 0.3),
+                      blurRadius: 10,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.add_rounded, size: 18, color: Colors.white),
+                    SizedBox(width: 4),
+                    Text(
+                      'New List',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ),
         ],
       ),
       body: Column(
         children: [
-          // Search & Filter header
+          // Search bar
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+            padding: const EdgeInsets.fromLTRB(16, 6, 16, 8),
             child: TextField(
               controller: _searchController,
               decoration: InputDecoration(
                 hintText: 'Search lists...',
-                prefixIcon: const Icon(Icons.search, size: 20),
+                prefixIcon: const Icon(Icons.search_rounded, size: 20),
                 suffixIcon: _searchQuery.isNotEmpty
                     ? IconButton(
-                        icon: const Icon(Icons.clear, size: 18),
+                        icon: const Icon(Icons.clear_rounded, size: 18),
                         onPressed: () {
                           _searchController.clear();
                           setState(() => _searchQuery = '');
@@ -70,7 +107,7 @@ class _ListsScreenState extends ConsumerState<ListsScreen> {
                     : null,
                 contentPadding: const EdgeInsets.symmetric(
                   horizontal: 16,
-                  vertical: 10,
+                  vertical: 12,
                 ),
               ),
               onChanged: (val) {
@@ -79,19 +116,20 @@ class _ListsScreenState extends ConsumerState<ListsScreen> {
             ),
           ),
 
-          // Filter chips
+          // Filter pills
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
             child: Row(
               children: [
-                _buildFilterChip('Active', ListFilter.active),
+                _buildFilterChip('Active', ListFilter.active, isDark),
                 const SizedBox(width: 8),
-                _buildFilterChip('Completed', ListFilter.completed),
+                _buildFilterChip('Completed', ListFilter.completed, isDark),
                 const SizedBox(width: 8),
-                _buildFilterChip('Archived', ListFilter.archived),
+                _buildFilterChip('Archived', ListFilter.archived, isDark),
                 const SizedBox(width: 8),
-                _buildFilterChip('All', ListFilter.all),
+                _buildFilterChip('All', ListFilter.all, isDark),
               ],
             ),
           ),
@@ -102,7 +140,6 @@ class _ListsScreenState extends ConsumerState<ListsScreen> {
             child: listsAsync.when(
               data: (lists) {
                 final filtered = lists.where((l) {
-                  // Status filter
                   if (_selectedFilter == ListFilter.active &&
                       l.status != ListStatus.active) {
                     return false;
@@ -115,7 +152,6 @@ class _ListsScreenState extends ConsumerState<ListsScreen> {
                       l.status != ListStatus.archived) {
                     return false;
                   }
-                  // Search query filter
                   if (_searchQuery.isNotEmpty &&
                       !l.name.toLowerCase().contains(_searchQuery)) {
                     return false;
@@ -125,14 +161,50 @@ class _ListsScreenState extends ConsumerState<ListsScreen> {
 
                 if (filtered.isEmpty) {
                   return EmptyStateWidget(
-                    icon: Icons.list_alt_rounded,
+                    icon: Icons.checklist_rounded,
+                    title: _searchQuery.isNotEmpty
+                        ? 'No Results Found'
+                        : 'No Lists',
                     message: _searchQuery.isNotEmpty
-                        ? 'No lists matching "$_searchQuery"'
+                        ? 'No shopping lists matching "$_searchQuery"'
                         : _getEmptyFilterMessage(),
-                    action: FilledButton.icon(
-                      onPressed: () => _showCreateEditDialog(context),
-                      icon: const Icon(Icons.add, size: 18),
-                      label: const Text('Create List'),
+                    action: BouncyTap(
+                      onTap: () => _showCreateEditDialog(context),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 12,
+                        ),
+                        decoration: BoxDecoration(
+                          gradient: AppColors.primaryGradient,
+                          borderRadius: BorderRadius.circular(14),
+                          boxShadow: [
+                            BoxShadow(
+                              color: AppColors.primary.withValues(alpha: 0.3),
+                              blurRadius: 10,
+                              offset: const Offset(0, 3),
+                            ),
+                          ],
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.add_rounded,
+                              size: 18,
+                              color: Colors.white,
+                            ),
+                            SizedBox(width: 6),
+                            Text(
+                              'Create List',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
                   );
                 }
@@ -145,12 +217,15 @@ class _ListsScreenState extends ConsumerState<ListsScreen> {
                     physics: const BouncingScrollPhysics(
                       parent: AlwaysScrollableScrollPhysics(),
                     ),
-                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 88),
+                    padding: const EdgeInsets.fromLTRB(16, 6, 16, 96),
                     itemCount: filtered.length,
                     separatorBuilder: (_, _) => const SizedBox(height: 12),
                     itemBuilder: (context, index) {
                       final item = filtered[index];
-                      return _buildListCard(context, item, isDark);
+                      return FadeSlideTransition(
+                        delay: Duration(milliseconds: 40 * index),
+                        child: _buildListCard(context, item, isDark),
+                      );
                     },
                   ),
                 );
@@ -163,7 +238,7 @@ class _ListsScreenState extends ConsumerState<ListsScreen> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       const Icon(
-                        Icons.error_outline,
+                        Icons.error_outline_rounded,
                         size: 48,
                         color: AppColors.error,
                       ),
@@ -182,18 +257,13 @@ class _ListsScreenState extends ConsumerState<ListsScreen> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showCreateEditDialog(context),
-        icon: const Icon(Icons.add),
-        label: const Text('New List'),
-      ),
     );
   }
 
   String _getEmptyFilterMessage() {
     switch (_selectedFilter) {
       case ListFilter.active:
-        return 'No active shopping lists.\nCreate one to get started!';
+        return 'No active shopping lists.\nCreate one to organize your groceries!';
       case ListFilter.completed:
         return 'No completed lists yet.\nFinish shopping a list to see it here.';
       case ListFilter.archived:
@@ -203,16 +273,44 @@ class _ListsScreenState extends ConsumerState<ListsScreen> {
     }
   }
 
-  Widget _buildFilterChip(String label, ListFilter filter) {
+  Widget _buildFilterChip(String label, ListFilter filter, bool isDark) {
     final isSelected = _selectedFilter == filter;
-    return ChoiceChip(
-      label: Text(label),
-      selected: isSelected,
-      onSelected: (selected) {
-        if (selected) {
-          setState(() => _selectedFilter = filter);
-        }
+    return BouncyTap(
+      scaleFactor: 0.94,
+      onTap: () {
+        HapticFeedback.selectionClick();
+        setState(() => _selectedFilter = filter);
       },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? (isDark
+                  ? AppColors.primaryNeon.withValues(alpha: 0.18)
+                  : AppColors.primary.withValues(alpha: 0.12))
+              : (isDark ? AppColors.cardDark : Colors.white),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isSelected
+                ? (isDark ? AppColors.primaryNeon : AppColors.primary)
+                : (isDark ? AppColors.borderDark : AppColors.borderLight),
+            width: isSelected ? 1.5 : 1,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+            color: isSelected
+                ? (isDark ? AppColors.primaryNeon : AppColors.primary)
+                : (isDark
+                    ? AppColors.textSecondaryDark
+                    : AppColors.textSecondary),
+          ),
+        ),
+      ),
     );
   }
 
@@ -227,256 +325,253 @@ class _ListsScreenState extends ConsumerState<ListsScreen> {
     final isCompleted = list.status == ListStatus.completed;
     final isArchived = list.status == ListStatus.archived;
 
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(
-          color: isDark ? const Color(0xFF2A2A2A) : const Color(0xFFE0E0E0),
-          width: 0.8,
+    return BouncyTap(
+      onTap: () {
+        context.push('/lists/${list.id}/shopping');
+      },
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: isDark ? AppColors.cardDark : Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isDark ? AppColors.borderDark : AppColors.borderLight,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: isDark
+                  ? Colors.black.withValues(alpha: 0.2)
+                  : Colors.black.withValues(alpha: 0.03),
+              blurRadius: 10,
+              offset: const Offset(0, 3),
+            ),
+          ],
         ),
-      ),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: () {
-          context.push('/lists/${list.id}/shopping');
-        },
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Header row: Name + Status Chip + Menu Button
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      list.name,
-                      style: const TextStyle(
-                        fontSize: 17,
-                        fontWeight: FontWeight.w700,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header row: Name + Status Chip + Menu Button
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    list.name,
+                    style: const TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: -0.2,
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  _buildStatusChip(list.status, isDark),
-                  PopupMenuButton<String>(
-                    icon: const Icon(Icons.more_vert, size: 20),
-                    padding: EdgeInsets.zero,
-                    onSelected: (action) =>
-                        _handleAction(context, action, list),
-                    itemBuilder: (context) => [
-                      const PopupMenuItem(
-                        value: 'open',
-                        child: Row(
-                          children: [
-                            Icon(Icons.shopping_bag_outlined, size: 18),
-                            SizedBox(width: 8),
-                            Text('Open / Shop'),
-                          ],
-                        ),
-                      ),
-                      const PopupMenuItem(
-                        value: 'edit',
-                        child: Row(
-                          children: [
-                            Icon(Icons.edit_outlined, size: 18),
-                            SizedBox(width: 8),
-                            Text('Rename / Edit'),
-                          ],
-                        ),
-                      ),
-                      const PopupMenuItem(
-                        value: 'duplicate',
-                        child: Row(
-                          children: [
-                            Icon(Icons.copy_outlined, size: 18),
-                            SizedBox(width: 8),
-                            Text('Duplicate'),
-                          ],
-                        ),
-                      ),
-                      const PopupMenuItem(
-                        value: 'buy_again',
-                        child: Row(
-                          children: [
-                            Icon(Icons.replay_rounded, size: 18),
-                            SizedBox(width: 8),
-                            Text('Buy Again'),
-                          ],
-                        ),
-                      ),
-                      if (list.status == ListStatus.active) ...[
-                        const PopupMenuItem(
-                          value: 'complete',
-                          child: Row(
-                            children: [
-                              Icon(Icons.check_circle_outline, size: 18),
-                              SizedBox(width: 8),
-                              Text('Mark Complete'),
-                            ],
-                          ),
-                        ),
-                        const PopupMenuItem(
-                          value: 'archive',
-                          child: Row(
-                            children: [
-                              Icon(Icons.archive_outlined, size: 18),
-                              SizedBox(width: 8),
-                              Text('Archive'),
-                            ],
-                          ),
-                        ),
-                      ] else if (isCompleted) ...[
-                        const PopupMenuItem(
-                          value: 'reopen',
-                          child: Row(
-                            children: [
-                              Icon(Icons.unarchive_outlined, size: 18),
-                              SizedBox(width: 8),
-                              Text('Reopen List'),
-                            ],
-                          ),
-                        ),
-                        const PopupMenuItem(
-                          value: 'archive',
-                          child: Row(
-                            children: [
-                              Icon(Icons.archive_outlined, size: 18),
-                              SizedBox(width: 8),
-                              Text('Archive'),
-                            ],
-                          ),
-                        ),
-                      ] else if (isArchived) ...[
-                        const PopupMenuItem(
-                          value: 'reopen',
-                          child: Row(
-                            children: [
-                              Icon(Icons.unarchive_outlined, size: 18),
-                              SizedBox(width: 8),
-                              Text('Unarchive'),
-                            ],
-                          ),
-                        ),
-                      ],
-                      const PopupMenuDivider(),
-                      const PopupMenuItem(
-                        value: 'delete',
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.delete_outline,
-                              color: AppColors.error,
-                              size: 18,
-                            ),
-                            SizedBox(width: 8),
-                            Text(
-                              'Delete',
-                              style: TextStyle(color: AppColors.error),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-
-              // Progress row
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    '${list.completedCount} / ${list.itemCount} items completed',
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: isDark
-                          ? AppColors.textSecondaryDark
-                          : AppColors.textSecondary,
-                    ),
-                  ),
-                  Text(
-                    '${(progress * 100).toInt()}%',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: isDark
-                          ? AppColors.textSecondaryDark
-                          : AppColors.textSecondary,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 6),
-
-              ClipRRect(
-                borderRadius: BorderRadius.circular(6),
-                child: LinearProgressIndicator(
-                  value: progress,
-                  minHeight: 6,
-                  backgroundColor: isDark
-                      ? Colors.white12
-                      : const Color(0xFFEEEEEE),
-                  valueColor: AlwaysStoppedAnimation<Color>(
-                    progress == 1.0 ? AppColors.success : AppColors.primary,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
-              ),
-              const SizedBox(height: 12),
-
-              // Financial stats & relative date row
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        list.hasBudget
-                            ? '${FormatUtils.formatCurrency(list.estimatedTotal)} / ${FormatUtils.formatCurrency(list.budget)}'
-                            : FormatUtils.formatCurrency(list.estimatedTotal),
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
-                          color: list.isOverBudget
-                              ? AppColors.budgetOver
-                              : (isDark
-                                    ? AppColors.textPrimaryDark
-                                    : AppColors.textPrimary),
+                const SizedBox(width: 8),
+                _buildStatusChip(list.status, isDark),
+                PopupMenuButton<String>(
+                  icon: const Icon(Icons.more_vert_rounded, size: 20),
+                  padding: EdgeInsets.zero,
+                  onSelected: (action) =>
+                      _handleAction(context, action, list),
+                  itemBuilder: (context) => [
+                    const PopupMenuItem(
+                      value: 'open',
+                      child: Row(
+                        children: [
+                          Icon(Icons.shopping_bag_outlined, size: 18),
+                          SizedBox(width: 8),
+                          Text('Open / Shop'),
+                        ],
+                      ),
+                    ),
+                    const PopupMenuItem(
+                      value: 'edit',
+                      child: Row(
+                        children: [
+                          Icon(Icons.edit_outlined, size: 18),
+                          SizedBox(width: 8),
+                          Text('Rename / Edit'),
+                        ],
+                      ),
+                    ),
+                    const PopupMenuItem(
+                      value: 'duplicate',
+                      child: Row(
+                        children: [
+                          Icon(Icons.copy_outlined, size: 18),
+                          SizedBox(width: 8),
+                          Text('Duplicate'),
+                        ],
+                      ),
+                    ),
+                    const PopupMenuItem(
+                      value: 'buy_again',
+                      child: Row(
+                        children: [
+                          Icon(Icons.replay_rounded, size: 18),
+                          SizedBox(width: 8),
+                          Text('Buy Again'),
+                        ],
+                      ),
+                    ),
+                    if (list.status == ListStatus.active) ...[
+                      const PopupMenuItem(
+                        value: 'complete',
+                        child: Row(
+                          children: [
+                            Icon(Icons.check_circle_outline, size: 18),
+                            SizedBox(width: 8),
+                            Text('Mark Complete'),
+                          ],
                         ),
                       ),
-                      if (list.hasBudget)
-                        Text(
-                          list.isOverBudget
-                              ? 'Over budget by ${FormatUtils.formatCurrencyCompact(list.estimatedTotal - list.budget)}'
-                              : '${FormatUtils.formatCurrencyCompact(list.remainingBudget)} remaining',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w500,
-                            color: list.isOverBudget
-                                ? AppColors.budgetOver
-                                : AppColors.budgetSafe,
-                          ),
+                      const PopupMenuItem(
+                        value: 'archive',
+                        child: Row(
+                          children: [
+                            Icon(Icons.archive_outlined, size: 18),
+                            SizedBox(width: 8),
+                            Text('Archive'),
+                          ],
                         ),
+                      ),
+                    ] else if (isCompleted) ...[
+                      const PopupMenuItem(
+                        value: 'reopen',
+                        child: Row(
+                          children: [
+                            Icon(Icons.unarchive_outlined, size: 18),
+                            SizedBox(width: 8),
+                            Text('Reopen List'),
+                          ],
+                        ),
+                      ),
+                      const PopupMenuItem(
+                        value: 'archive',
+                        child: Row(
+                          children: [
+                            Icon(Icons.archive_outlined, size: 18),
+                            SizedBox(width: 8),
+                            Text('Archive'),
+                          ],
+                        ),
+                      ),
+                    ] else if (isArchived) ...[
+                      const PopupMenuItem(
+                        value: 'reopen',
+                        child: Row(
+                          children: [
+                            Icon(Icons.unarchive_outlined, size: 18),
+                            SizedBox(width: 8),
+                            Text('Unarchive'),
+                          ],
+                        ),
+                      ),
                     ],
-                  ),
-                  Text(
-                    AppDateUtils.relativeDate(list.updatedAt),
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: isDark
-                          ? AppColors.textSecondaryDark
-                          : AppColors.textSecondary,
+                    const PopupMenuDivider(),
+                    const PopupMenuItem(
+                      value: 'delete',
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.delete_outline,
+                            color: AppColors.error,
+                            size: 18,
+                          ),
+                          SizedBox(width: 8),
+                          Text(
+                            'Delete',
+                            style: TextStyle(color: AppColors.error),
+                          ),
+                        ],
+                      ),
                     ),
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+
+            // Progress row
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  '${list.completedCount} / ${list.itemCount} items completed',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: isDark
+                        ? AppColors.textSecondaryDark
+                        : AppColors.textSecondary,
                   ),
-                ],
-              ),
-            ],
-          ),
+                ),
+                Text(
+                  '${(progress * 100).toInt()}%',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+
+            // Progress Bar
+            ProgressBarWidget(
+              value: progress,
+              height: 7,
+              borderRadius: 6,
+            ),
+            const SizedBox(height: 14),
+
+            // Financial stats & relative date row
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      list.hasBudget
+                          ? '${FormatUtils.formatCurrency(list.estimatedTotal)} / ${FormatUtils.formatCurrency(list.budget)}'
+                          : FormatUtils.formatCurrency(list.estimatedTotal),
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800,
+                        color: list.isOverBudget
+                            ? AppColors.budgetOver
+                            : (isDark
+                                ? AppColors.textPrimaryDark
+                                : AppColors.textPrimary),
+                      ),
+                    ),
+                    if (list.hasBudget)
+                      Text(
+                        list.isOverBudget
+                            ? 'Over by ${FormatUtils.formatCurrencyCompact(list.estimatedTotal - list.budget)}'
+                            : '${FormatUtils.formatCurrencyCompact(list.remainingBudget)} remaining',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: list.isOverBudget
+                              ? AppColors.budgetOver
+                              : AppColors.budgetSafe,
+                        ),
+                      ),
+                  ],
+                ),
+                Text(
+                  AppDateUtils.relativeDate(list.updatedAt),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: isDark
+                        ? AppColors.textSecondaryDark
+                        : AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );
@@ -489,17 +584,18 @@ class _ListsScreenState extends ConsumerState<ListsScreen> {
 
     switch (status) {
       case ListStatus.active:
-        bg = AppColors.primary.withAlpha(25);
-        fg = isDark ? AppColors.primaryLight : AppColors.primary;
+        bg = (isDark ? AppColors.primaryNeon : AppColors.primary)
+            .withValues(alpha: 0.15);
+        fg = isDark ? AppColors.primaryNeon : AppColors.primary;
         text = 'Active';
         break;
       case ListStatus.completed:
-        bg = AppColors.success.withAlpha(25);
+        bg = AppColors.success.withValues(alpha: 0.15);
         fg = AppColors.success;
         text = 'Completed';
         break;
       case ListStatus.archived:
-        bg = Colors.grey.withAlpha(30);
+        bg = Colors.grey.withValues(alpha: 0.15);
         fg = Colors.grey;
         text = 'Archived';
         break;
@@ -513,7 +609,7 @@ class _ListsScreenState extends ConsumerState<ListsScreen> {
       ),
       child: Text(
         text,
-        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: fg),
+        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: fg),
       ),
     );
   }
@@ -540,6 +636,7 @@ class _ListsScreenState extends ConsumerState<ListsScreen> {
               content: Text('Duplicated "${list.name}"'),
               action: SnackBarAction(
                 label: 'View',
+                textColor: AppColors.primaryNeon,
                 onPressed: () => context.push('/lists/$newId/shopping'),
               ),
             ),
@@ -556,6 +653,7 @@ class _ListsScreenState extends ConsumerState<ListsScreen> {
               content: Text('Created new shopping trip for "${list.name}"'),
               action: SnackBarAction(
                 label: 'Start Shopping',
+                textColor: AppColors.primaryNeon,
                 onPressed: () => context.push('/lists/$newId/shopping'),
               ),
             ),
@@ -653,7 +751,7 @@ class _ListsScreenState extends ConsumerState<ListsScreen> {
                 hintText: 'e.g. Weekend Barbecue',
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 14),
             TextField(
               controller: budgetController,
               keyboardType: const TextInputType.numberWithOptions(

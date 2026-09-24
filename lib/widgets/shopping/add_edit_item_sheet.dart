@@ -10,6 +10,7 @@ import 'package:dailycart/providers/category_provider.dart';
 import 'package:dailycart/providers/frequent_item_provider.dart';
 import 'package:dailycart/providers/grocery_item_provider.dart';
 import 'package:dailycart/providers/shopping_list_provider.dart';
+import 'package:dailycart/widgets/common/bouncy_tap.dart';
 
 class AddEditItemSheet extends ConsumerStatefulWidget {
   const AddEditItemSheet({super.key, required this.listId, this.existingItem});
@@ -564,17 +565,19 @@ class _AddEditItemSheetState extends ConsumerState<AddEditItemSheet> {
     required IconData icon,
     required VoidCallback onTap,
   }) {
-    return Container(
-      width: 42,
-      height: 42,
-      decoration: BoxDecoration(
-        color: AppColors.primary.withAlpha(20),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: IconButton(
-        padding: EdgeInsets.zero,
-        icon: Icon(icon, size: 20, color: AppColors.primary),
-        onPressed: onTap,
+    return BouncyTap(
+      scaleFactor: 0.9,
+      onTap: onTap,
+      child: Container(
+        width: 42,
+        height: 42,
+        decoration: BoxDecoration(
+          color: AppColors.primaryLight.withValues(alpha: 0.15),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Center(
+          child: Icon(icon, size: 20, color: AppColors.primaryLight),
+        ),
       ),
     );
   }

@@ -26,8 +26,8 @@ class AppLogoWidget extends StatelessWidget {
         boxShadow: showShadow
             ? [
                 BoxShadow(
-                  color: AppColors.primary.withAlpha(45),
-                  blurRadius: size * 0.25,
+                  color: AppColors.primaryLight.withValues(alpha: 0.35),
+                  blurRadius: size * 0.3,
                   offset: Offset(0, size * 0.1),
                 ),
               ]
@@ -43,7 +43,9 @@ class AppLogoWidget extends StatelessWidget {
           errorBuilder: (context, error, stackTrace) {
             // Elegant fallback if asset fails to load
             return Container(
-              color: AppColors.primary,
+              decoration: const BoxDecoration(
+                gradient: AppColors.primaryGradient,
+              ),
               child: Center(
                 child: Icon(
                   Icons.shopping_cart_rounded,

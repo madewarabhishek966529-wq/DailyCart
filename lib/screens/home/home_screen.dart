@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 import 'package:dailycart/core/constants/app_constants.dart';
 import 'package:dailycart/core/constants/app_routes.dart';
 import 'package:dailycart/core/theme/app_colors.dart';
 import 'package:dailycart/core/utils/format_utils.dart';
+import 'package:dailycart/core/animations/app_animations.dart';
 import 'package:dailycart/models/grocery_item_model.dart';
 import 'package:dailycart/models/shopping_list_model.dart';
 import 'package:dailycart/providers/frequent_item_provider.dart';
@@ -12,6 +15,8 @@ import 'package:dailycart/providers/grocery_item_provider.dart';
 import 'package:dailycart/providers/history_provider.dart';
 import 'package:dailycart/providers/shopping_list_provider.dart';
 import 'package:dailycart/widgets/common/app_logo_widget.dart';
+import 'package:dailycart/widgets/common/bouncy_tap.dart';
+import 'package:dailycart/widgets/shopping/progress_bar_widget.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -19,11 +24,11 @@ class HomeScreen extends ConsumerWidget {
   String _getGreeting() {
     final hour = DateTime.now().hour;
     if (hour < 12) {
-      return 'Good morning 👋';
+      return 'Good morning';
     } else if (hour < 17) {
-      return 'Good afternoon ☀️';
+      return 'Good afternoon';
     } else {
-      return 'Good evening 🌙';
+      return 'Good evening';
     }
   }
 
@@ -32,36 +37,65 @@ class HomeScreen extends ConsumerWidget {
     final listsAsync = ref.watch(shoppingListsProvider);
     final frequentItemsAsync = ref.watch(frequentItemsProvider);
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final todayFormatted = DateFormat('EEE, d MMM').format(DateTime.now());
 
     return Scaffold(
       appBar: AppBar(
         titleSpacing: 16,
         title: Row(
           children: [
-            const AppLogoWidget(size: 38, borderRadius: 10, showShadow: false),
+            const AppLogoWidget(size: 40, borderRadius: 12, showShadow: true),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    _getGreeting(),
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
-                      color: isDark
-                          ? AppColors.textSecondaryDark
-                          : AppColors.textSecondary,
-                    ),
+                  Row(
+                    children: [
+                      Text(
+                        _getGreeting(),
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                          color: isDark
+                              ? AppColors.textSecondaryDark
+                              : AppColors.textSecondary,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 1.5,
+                        ),
+                        decoration: BoxDecoration(
+                          color: isDark
+                              ? const Color(0xFF1E293B)
+                              : const Color(0xFFF1F5F9),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          todayFormatted,
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                            color: isDark
+                                ? AppColors.textSecondaryDark
+                                : AppColors.textSecondary,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 1),
+                  const SizedBox(height: 2),
                   Text(
-                    "What's on your cart?",
+                    "What's in your cart?",
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      fontSize: 17,
-                      fontWeight: FontWeight.w700,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.3,
                       color: isDark
                           ? AppColors.textPrimaryDark
                           : AppColors.textPrimary,
@@ -73,10 +107,43 @@ class HomeScreen extends ConsumerWidget {
           ],
         ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.add_circle_outline_rounded, size: 28),
-            tooltip: 'Create New List',
-            onPressed: () => _showCreateListDialog(context, ref),
+          Padding(
+            padding: const EdgeInsets.only(right: 12),
+            child: BouncyTap(
+              onTap: () => _showCreateListDialog(context, ref),
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  gradient: AppColors.primaryGradient,
+                  borderRadius: BorderRadius.circular(14),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.primary.withValues(alpha: 0.3),
+                      blurRadius: 10,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.add_rounded, size: 18, color: Colors.white),
+                    SizedBox(width: 4),
+                    Text(
+                      'New List',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ),
         ],
       ),
@@ -85,9 +152,8 @@ class HomeScreen extends ConsumerWidget {
           final activeLists = lists
               .where((l) => l.status == ListStatus.active)
               .toList();
-          final currentActiveList = activeLists.isNotEmpty
-              ? activeLists.first
-              : null;
+          final currentActiveList =
+              activeLists.isNotEmpty ? activeLists.first : null;
           final recentLists = lists.take(4).toList();
 
           return RefreshIndicator(
@@ -99,34 +165,45 @@ class HomeScreen extends ConsumerWidget {
               physics: const BouncingScrollPhysics(
                 parent: AlwaysScrollableScrollPhysics(),
               ),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 96),
               children: [
-                // 1. Current Active Shopping List Card
-                _buildActiveListSection(
-                  context,
-                  ref,
-                  currentActiveList,
-                  isDark,
+                // 1. Current Active Shopping List Card (Hero Showcase)
+                FadeSlideTransition(
+                  delay: const Duration(milliseconds: 50),
+                  child: _buildActiveListSection(
+                    context,
+                    ref,
+                    currentActiveList,
+                    isDark,
+                  ),
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 22),
 
                 // 2. Quick Add Row
-                _buildQuickAddSection(
-                  context,
-                  ref,
-                  currentActiveList,
-                  frequentItemsAsync,
-                  isDark,
+                FadeSlideTransition(
+                  delay: const Duration(milliseconds: 120),
+                  child: _buildQuickAddSection(
+                    context,
+                    ref,
+                    currentActiveList,
+                    frequentItemsAsync,
+                    isDark,
+                  ),
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 22),
 
-                // 3. Recent Lists Section
-                _buildRecentListsSection(context, recentLists, isDark),
-                const SizedBox(height: 24),
+                // 3. Monthly Spend & Insights Deck
+                FadeSlideTransition(
+                  delay: const Duration(milliseconds: 190),
+                  child: _buildMonthlyStatsSection(context, ref, isDark),
+                ),
+                const SizedBox(height: 22),
 
-                // 4. Monthly Summary / Secondary Statistics
-                _buildMonthlyStatsSection(context, ref, isDark),
-                const SizedBox(height: 32),
+                // 4. Recent Lists Section
+                FadeSlideTransition(
+                  delay: const Duration(milliseconds: 260),
+                  child: _buildRecentListsSection(context, recentLists, isDark),
+                ),
               ],
             ),
           );
@@ -144,7 +221,7 @@ class HomeScreen extends ConsumerWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 const Icon(
-                  Icons.error_outline,
+                  Icons.error_outline_rounded,
                   size: 48,
                   color: AppColors.error,
                 ),
@@ -170,46 +247,97 @@ class HomeScreen extends ConsumerWidget {
     bool isDark,
   ) {
     if (activeList == null) {
-      return Card(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      return Container(
+        decoration: BoxDecoration(
+          color: isDark ? AppColors.cardDark : Colors.white,
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(
+            color: isDark ? AppColors.borderDark : AppColors.borderLight,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: isDark
+                  ? Colors.black.withValues(alpha: 0.3)
+                  : Colors.black.withValues(alpha: 0.04),
+              blurRadius: 16,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
           child: Column(
             children: [
               Container(
-                width: 56,
-                height: 56,
+                width: 64,
+                height: 64,
                 decoration: BoxDecoration(
-                  color: AppColors.primary.withAlpha(20),
+                  gradient: LinearGradient(
+                    colors: [
+                      AppColors.primary.withValues(alpha: 0.2),
+                      AppColors.primaryLight.withValues(alpha: 0.08),
+                    ],
+                  ),
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(
                   Icons.shopping_bag_outlined,
-                  color: AppColors.primary,
-                  size: 28,
+                  color: AppColors.primaryLight,
+                  size: 30,
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 18),
               const Text(
                 'No Active Shopping List',
-                style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
               ),
               const SizedBox(height: 6),
               Text(
-                'Create a grocery list to organize items and track your shopping budget.',
+                'Create a grocery list to organize your cart, track budget in real-time, and check off items.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 13,
+                  height: 1.4,
                   color: isDark
                       ? AppColors.textSecondaryDark
                       : AppColors.textSecondary,
                 ),
               ),
-              const SizedBox(height: 18),
-              FilledButton.icon(
-                onPressed: () => _showCreateListDialog(context, ref),
-                icon: const Icon(Icons.add, size: 18),
-                label: const Text('Create Shopping List'),
+              const SizedBox(height: 20),
+              BouncyTap(
+                onTap: () => _showCreateListDialog(context, ref),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 12,
+                  ),
+                  decoration: BoxDecoration(
+                    gradient: AppColors.primaryGradient,
+                    borderRadius: BorderRadius.circular(14),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.primary.withValues(alpha: 0.3),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.add_rounded, size: 18, color: Colors.white),
+                      SizedBox(width: 6),
+                      Text(
+                        'Create Shopping List',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ],
           ),
@@ -220,95 +348,120 @@ class HomeScreen extends ConsumerWidget {
     final progress = activeList.itemCount > 0
         ? (activeList.completedCount / activeList.itemCount).clamp(0.0, 1.0)
         : 0.0;
+    final percentInt = (progress * 100).toInt();
 
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+    return Container(
+      decoration: BoxDecoration(
+        gradient: isDark
+            ? const LinearGradient(
+                colors: [Color(0xFF0F231D), Color(0xFF101C2B)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              )
+            : const LinearGradient(
+                colors: [Color(0xFFECFDF5), Color(0xFFF0FDF4)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: isDark
+              ? AppColors.primaryLight.withValues(alpha: 0.3)
+              : AppColors.primary.withValues(alpha: 0.25),
+          width: 1.2,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primary.withValues(alpha: isDark ? 0.25 : 0.1),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
       child: Padding(
-        padding: const EdgeInsets.all(18),
+        padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Top Badge & Tag
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Expanded(
-                  child: Text(
-                    activeList.name,
-                    style: const TextStyle(
-                      fontSize: 19,
-                      fontWeight: FontWeight.w700,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
                 Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 10,
                     vertical: 4,
                   ),
                   decoration: BoxDecoration(
-                    color: AppColors.primary.withAlpha(25),
-                    borderRadius: BorderRadius.circular(12),
+                    color: isDark
+                        ? AppColors.primaryNeon.withValues(alpha: 0.18)
+                        : AppColors.primary.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(10),
                   ),
-                  child: Text(
-                    'Active',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: isDark
-                          ? AppColors.primaryLight
-                          : AppColors.primary,
-                    ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 7,
+                        height: 7,
+                        decoration: BoxDecoration(
+                          color: isDark
+                              ? AppColors.primaryNeon
+                              : AppColors.primary,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        'ACTIVE SHOPPING',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.5,
+                          color: isDark
+                              ? AppColors.primaryNeon
+                              : AppColors.primary,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              ],
-            ),
-            const SizedBox(height: 14),
-
-            // Progress text: 8 / 15 completed
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
                 Text(
-                  '${activeList.completedCount} / ${activeList.itemCount} completed',
+                  '$percentInt% done',
                   style: TextStyle(
                     fontSize: 13,
-                    fontWeight: FontWeight.w500,
+                    fontWeight: FontWeight.w700,
                     color: isDark
-                        ? AppColors.textSecondaryDark
-                        : AppColors.textSecondary,
-                  ),
-                ),
-                Text(
-                  '${(progress * 100).toInt()}%',
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
+                        ? AppColors.textPrimaryDark
+                        : AppColors.textPrimary,
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 12),
 
-            // Progress Bar
-            ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: LinearProgressIndicator(
-                value: progress,
-                minHeight: 10,
-                backgroundColor: isDark
-                    ? Colors.white12
-                    : const Color(0xFFEEEEEE),
-                valueColor: AlwaysStoppedAnimation<Color>(
-                  progress == 1.0 ? AppColors.success : AppColors.primary,
-                ),
+            // List Title
+            Text(
+              activeList.name,
+              style: const TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.w800,
+                letterSpacing: -0.4,
               ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
             const SizedBox(height: 14),
 
-            // Pricing & Budget: ₹1,240 / ₹2,000
+            // Progress Bar
+            ProgressBarWidget(
+              value: progress,
+              height: 10,
+              borderRadius: 6,
+            ),
+            const SizedBox(height: 14),
+
+            // Stats Row: Completed count & Estimated total
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -316,7 +469,7 @@ class HomeScreen extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Estimated Total',
+                      'Items in Cart',
                       style: TextStyle(
                         fontSize: 11,
                         color: isDark
@@ -326,69 +479,106 @@ class HomeScreen extends ConsumerWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      activeList.hasBudget
-                          ? '${FormatUtils.formatCurrency(activeList.estimatedTotal)} / ${FormatUtils.formatCurrency(activeList.budget)}'
-                          : FormatUtils.formatCurrency(
-                              activeList.estimatedTotal,
-                            ),
-                      style: TextStyle(
-                        fontSize: 15,
+                      '${activeList.completedCount} / ${activeList.itemCount} completed',
+                      style: const TextStyle(
+                        fontSize: 14,
                         fontWeight: FontWeight.w700,
-                        color: activeList.isOverBudget
-                            ? AppColors.budgetOver
-                            : (isDark
-                                  ? AppColors.textPrimaryDark
-                                  : AppColors.textPrimary),
                       ),
                     ),
                   ],
                 ),
-                if (activeList.hasBudget)
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color:
-                          (activeList.isOverBudget
-                                  ? AppColors.budgetOver
-                                  : AppColors.budgetSafe)
-                              .withAlpha(20),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      activeList.isOverBudget
-                          ? 'Over budget'
-                          : '${FormatUtils.formatCurrencyCompact(activeList.remainingBudget)} left',
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      activeList.hasBudget ? 'Estimated / Budget' : 'Total Est.',
                       style: TextStyle(
                         fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: activeList.isOverBudget
-                            ? AppColors.budgetOver
-                            : AppColors.budgetSafe,
+                        color: isDark
+                            ? AppColors.textSecondaryDark
+                            : AppColors.textSecondary,
                       ),
                     ),
-                  ),
+                    const SizedBox(height: 2),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          FormatUtils.formatCurrency(activeList.estimatedTotal),
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w800,
+                            color: activeList.isOverBudget
+                                ? AppColors.budgetOver
+                                : (isDark
+                                    ? AppColors.textPrimaryDark
+                                    : AppColors.textPrimary),
+                          ),
+                        ),
+                        if (activeList.hasBudget) ...[
+                          Text(
+                            ' / ${FormatUtils.formatCurrency(activeList.budget)}',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: isDark
+                                  ? AppColors.textSecondaryDark
+                                  : AppColors.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ],
+                ),
               ],
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 18),
 
-            // [ Continue Shopping ] Button
-            SizedBox(
-              width: double.infinity,
-              height: 46,
-              child: FilledButton.icon(
-                onPressed: () {
-                  context.push('/lists/${activeList.id}/shopping');
-                },
-                icon: const Icon(
-                  Icons.shopping_cart_checkout_rounded,
-                  size: 20,
+            // [ Continue Shopping ] Floating Button
+            BouncyTap(
+              onTap: () {
+                context.push('/lists/${activeList.id}/shopping');
+              },
+              child: Container(
+                width: double.infinity,
+                height: 48,
+                decoration: BoxDecoration(
+                  gradient: AppColors.primaryGradient,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.primary.withValues(alpha: 0.35),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
                 ),
-                label: const Text(
-                  'Continue Shopping',
-                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                child: const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.shopping_cart_checkout_rounded,
+                      size: 20,
+                      color: Colors.white,
+                    ),
+                    SizedBox(width: 8),
+                    Text(
+                      'Continue Shopping',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                        letterSpacing: 0.2,
+                      ),
+                    ),
+                    SizedBox(width: 6),
+                    Icon(
+                      Icons.arrow_forward_rounded,
+                      size: 18,
+                      color: Colors.white,
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -406,12 +596,14 @@ class HomeScreen extends ConsumerWidget {
     bool isDark,
   ) {
     const defaultQuickAdd = [
-      'Milk',
-      'Eggs',
-      'Bread',
-      'Rice',
-      'Bananas',
-      'Tomatoes',
+      '🥛 Milk',
+      '🥚 Eggs',
+      '🍞 Bread',
+      '🍚 Rice',
+      '🍌 Bananas',
+      '🍅 Tomatoes',
+      '🥔 Potatoes',
+      '🧀 Cheese',
     ];
 
     return Column(
@@ -422,21 +614,38 @@ class HomeScreen extends ConsumerWidget {
           children: [
             const Text(
               'Quick Add',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+              style: TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.w800,
+                letterSpacing: -0.2,
+              ),
             ),
             if (activeList != null)
-              Text(
-                'to ${activeList.name}',
-                style: TextStyle(
-                  fontSize: 12,
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 8,
+                  vertical: 3,
+                ),
+                decoration: BoxDecoration(
                   color: isDark
-                      ? AppColors.textSecondaryDark
-                      : AppColors.textSecondary,
+                      ? const Color(0xFF1E293B)
+                      : const Color(0xFFF1F5F9),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  'to ${activeList.name}',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: isDark
+                        ? AppColors.textSecondaryDark
+                        : AppColors.textSecondary,
+                  ),
                 ),
               ),
           ],
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 12),
         frequentItemsAsync.when(
           data: (items) {
             final names = items.isNotEmpty
@@ -445,18 +654,55 @@ class HomeScreen extends ConsumerWidget {
 
             return SingleChildScrollView(
               scrollDirection: Axis.horizontal,
+              physics: const BouncingScrollPhysics(),
               child: Row(
                 children: names.map((name) {
                   return Padding(
                     padding: const EdgeInsets.only(right: 8),
-                    child: ActionChip(
-                      avatar: const Icon(Icons.add, size: 16),
-                      label: Text(name),
-                      backgroundColor: isDark
-                          ? const Color(0xFF1E1E1E)
-                          : Colors.white,
-                      onPressed: () =>
+                    child: BouncyTap(
+                      scaleFactor: 0.92,
+                      onTap: () =>
                           _handleQuickAddItem(context, ref, activeList, name),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 9,
+                        ),
+                        decoration: BoxDecoration(
+                          color: isDark ? AppColors.cardDark : Colors.white,
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: isDark
+                                ? AppColors.borderDark
+                                : AppColors.borderLight,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.03),
+                              blurRadius: 6,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.add_rounded,
+                              size: 16,
+                              color: AppColors.primaryLight,
+                            ),
+                            const SizedBox(width: 5),
+                            Text(
+                              name,
+                              style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
                   );
                 }).toList(),
@@ -473,11 +719,31 @@ class HomeScreen extends ConsumerWidget {
               children: defaultQuickAdd.map((name) {
                 return Padding(
                   padding: const EdgeInsets.only(right: 8),
-                  child: ActionChip(
-                    avatar: const Icon(Icons.add, size: 16),
-                    label: Text(name),
-                    onPressed: () =>
+                  child: BouncyTap(
+                    onTap: () =>
                         _handleQuickAddItem(context, ref, activeList, name),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 9,
+                      ),
+                      decoration: BoxDecoration(
+                        color: isDark ? AppColors.cardDark : Colors.white,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: isDark
+                              ? AppColors.borderDark
+                              : AppColors.borderLight,
+                        ),
+                      ),
+                      child: Text(
+                        name,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
                   ),
                 );
               }).toList(),
@@ -494,12 +760,17 @@ class HomeScreen extends ConsumerWidget {
     ShoppingListModel? activeList,
     String itemName,
   ) async {
+    // Strip leading emoji if present for clean grocery name
+    final cleanedName = itemName.replaceFirst(RegExp(r'^[^\w\s]+\s*'), '').trim();
+
     if (activeList == null) {
+      HapticFeedback.heavyImpact();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: const Text('Please create or select an active list first.'),
           action: SnackBarAction(
             label: 'Create',
+            textColor: AppColors.primaryNeon,
             onPressed: () => _showCreateListDialog(context, ref),
           ),
         ),
@@ -507,9 +778,11 @@ class HomeScreen extends ConsumerWidget {
       return;
     }
 
+    HapticFeedback.lightImpact();
+
     final item = GroceryItemModel(
       listId: activeList.id!,
-      name: itemName,
+      name: cleanedName,
       quantity: 1,
       unit: 'piece',
       unitPrice: 0,
@@ -524,11 +797,142 @@ class HomeScreen extends ConsumerWidget {
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Added $itemName to "${activeList.name}"'),
+          content: Row(
+            children: [
+              const Icon(
+                Icons.check_circle_rounded,
+                size: 18,
+                color: AppColors.primaryNeon,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text('Added "$cleanedName" to ${activeList.name}'),
+              ),
+            ],
+          ),
           duration: const Duration(seconds: 2),
         ),
       );
     }
+  }
+
+  Widget _buildMonthlyStatsSection(
+    BuildContext context,
+    WidgetRef ref,
+    bool isDark,
+  ) {
+    final now = DateTime.now();
+    final monthlyTotalAsync = ref.watch(monthlySpendProvider(now));
+
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.cardDark : Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: isDark ? AppColors.borderDark : AppColors.borderLight,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: isDark
+                ? Colors.black.withValues(alpha: 0.2)
+                : Colors.black.withValues(alpha: 0.03),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+                ),
+                borderRadius: BorderRadius.circular(14),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF6366F1).withValues(alpha: 0.3),
+                    blurRadius: 8,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+              ),
+              child: const Icon(
+                Icons.insights_rounded,
+                color: Colors.white,
+                size: 22,
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '${FormatUtils.formatMonthYear(now)} Spend',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: isDark
+                          ? AppColors.textSecondaryDark
+                          : AppColors.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  monthlyTotalAsync.when(
+                    data: (total) => Text(
+                      FormatUtils.formatCurrency(total),
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.3,
+                      ),
+                    ),
+                    loading: () => const Text('Loading...'),
+                    error: (_, _) => const Text('₹0.00'),
+                  ),
+                ],
+              ),
+            ),
+            BouncyTap(
+              onTap: () => context.go(AppRoutes.analytics),
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: isDark
+                      ? const Color(0xFF1E293B)
+                      : const Color(0xFFF1F5F9),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Insights',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: isDark
+                            ? AppColors.textPrimaryDark
+                            : AppColors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    const Icon(Icons.arrow_forward_ios_rounded, size: 10),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _buildRecentListsSection(
@@ -548,123 +952,119 @@ class HomeScreen extends ConsumerWidget {
           children: [
             const Text(
               'Recent Lists',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+              style: TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.w800,
+                letterSpacing: -0.2,
+              ),
             ),
-            TextButton(
-              onPressed: () => context.go(AppRoutes.lists),
-              child: const Text('View All'),
+            BouncyTap(
+              onTap: () => context.go(AppRoutes.lists),
+              child: const Padding(
+                padding: EdgeInsets.symmetric(vertical: 4),
+                child: Text(
+                  'View All',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.primaryLight,
+                  ),
+                ),
+              ),
             ),
           ],
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 10),
         ...recentLists.map((list) {
           final isCompleted = list.status == ListStatus.completed;
-          return Card(
-            margin: const EdgeInsets.only(bottom: 8),
-            child: ListTile(
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 4,
-              ),
-              leading: CircleAvatar(
-                backgroundColor: isCompleted
-                    ? AppColors.success.withAlpha(25)
-                    : AppColors.primary.withAlpha(25),
-                child: Icon(
-                  isCompleted
-                      ? Icons.check_circle_rounded
-                      : Icons.shopping_basket_rounded,
-                  color: isCompleted ? AppColors.success : AppColors.primary,
-                  size: 20,
-                ),
-              ),
-              title: Text(
-                list.name,
-                style: const TextStyle(fontWeight: FontWeight.w600),
-              ),
-              subtitle: Text(
-                '${list.itemCount} items • ${FormatUtils.formatCurrency(list.estimatedTotal)}',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: isDark
-                      ? AppColors.textSecondaryDark
-                      : AppColors.textSecondary,
-                ),
-              ),
-              trailing: const Icon(Icons.chevron_right, size: 20),
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: BouncyTap(
               onTap: () {
                 context.push('/lists/${list.id}/shopping');
               },
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 14,
+                ),
+                decoration: BoxDecoration(
+                  color: isDark ? AppColors.cardDark : Colors.white,
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(
+                    color: isDark
+                        ? AppColors.borderDark
+                        : AppColors.borderLight,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.03),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        color: isCompleted
+                            ? AppColors.success.withValues(alpha: 0.12)
+                            : AppColors.primary.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(
+                        isCompleted
+                            ? Icons.check_circle_rounded
+                            : Icons.shopping_bag_outlined,
+                        color: isCompleted
+                            ? AppColors.success
+                            : AppColors.primaryLight,
+                        size: 22,
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            list.name,
+                            style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            '${list.itemCount} items • ${FormatUtils.formatCurrency(list.estimatedTotal)}',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                              color: isDark
+                                  ? AppColors.textSecondaryDark
+                                  : AppColors.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Icon(
+                      Icons.chevron_right_rounded,
+                      size: 22,
+                      color: isDark ? Colors.white38 : Colors.black26,
+                    ),
+                  ],
+                ),
+              ),
             ),
           );
         }),
       ],
-    );
-  }
-
-  Widget _buildMonthlyStatsSection(
-    BuildContext context,
-    WidgetRef ref,
-    bool isDark,
-  ) {
-    final now = DateTime.now();
-    final monthlyTotalAsync = ref.watch(monthlySpendProvider(now));
-
-    return Card(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: AppColors.secondary.withAlpha(25),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Icon(
-                Icons.insights_rounded,
-                color: AppColors.secondary,
-                size: 24,
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '${FormatUtils.formatMonthYear(now)} Spend',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                      color: isDark
-                          ? AppColors.textSecondaryDark
-                          : AppColors.textSecondary,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  monthlyTotalAsync.when(
-                    data: (total) => Text(
-                      FormatUtils.formatCurrency(total),
-                      style: const TextStyle(
-                        fontSize: 17,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    loading: () => const Text('Loading...'),
-                    error: (_, _) => const Text('₹0.00'),
-                  ),
-                ],
-              ),
-            ),
-            TextButton(
-              onPressed: () => context.go(AppRoutes.analytics),
-              child: const Text('Analytics'),
-            ),
-          ],
-        ),
-      ),
     );
   }
 
@@ -688,7 +1088,7 @@ class HomeScreen extends ConsumerWidget {
                 hintText: 'e.g. Weekly Grocery',
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 14),
             TextField(
               controller: budgetController,
               keyboardType: const TextInputType.numberWithOptions(

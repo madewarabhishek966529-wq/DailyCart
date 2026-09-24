@@ -6,8 +6,8 @@ class BouncyTap extends StatefulWidget {
     super.key,
     required this.child,
     required this.onTap,
-    this.scaleFactor = 0.96,
-    this.duration = const Duration(milliseconds: 120),
+    this.scaleFactor = 0.95,
+    this.duration = const Duration(milliseconds: 140),
     this.enableHaptic = true,
   });
 
@@ -50,7 +50,7 @@ class _BouncyTapState extends State<BouncyTap>
   void _onTapDown(TapDownDetails details) {
     if (widget.onTap != null) {
       if (widget.enableHaptic) {
-        HapticFeedback.selectionClick();
+        HapticFeedback.lightImpact();
       }
       _controller.forward();
     }
@@ -79,7 +79,11 @@ class _BouncyTapState extends State<BouncyTap>
       child: AnimatedBuilder(
         animation: _scaleAnimation,
         builder: (context, child) {
-          return Transform.scale(scale: _scaleAnimation.value, child: child);
+          return Transform.scale(
+            scale: _scaleAnimation.value,
+            alignment: Alignment.center,
+            child: child,
+          );
         },
         child: widget.child,
       ),
